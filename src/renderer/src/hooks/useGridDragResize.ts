@@ -43,6 +43,10 @@ export function useGridDragResize(opts: {
         startPx: { left: number; top: number }
         /** Last collision-free pixel position (per axis) — fallback on hit. */
         lastPx: { left: number; top: number }
+        /** DOM surface that follows the pointer on the compositor thread. */
+        element: HTMLElement | null
+        /** Current visual delta, flushed to `transform` at most once per frame. */
+        dragOffset: { x: number; y: number }
         grid: GridPx
       }
     | null
@@ -51,6 +55,7 @@ export function useGridDragResize(opts: {
   // per frame so free dragging stays smooth (no per-event React re-renders).
   const pendingRef = useRef<LayoutItem | null>(null)
   const rafRef = useRef<number | null>(null)
+  const dragRafRef = useRef<number | null>(null)
 
   const gridFromContainer = useCallback((): GridPx | null => {
     const el = containerRef.current
@@ -72,6 +77,10 @@ export function useGridDragResize(opts: {
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current)
       rafRef.current = null
+    }
+    if (dragRafRef.current !== null) {
+      cancelAnimationFrame(dragRafRef.current)
+      dragRafRef.current = null
     }
     document.body.style.userSelect = ''
     document.body.style.cursor = ''
@@ -105,10 +114,20 @@ export function useGridDragResize(opts: {
       const top = clamp(s.startPx.top + dy, 0, s.grid.rows * s.grid.rowH - hPx)
       s.lastPx.left = left
       s.lastPx.top = top
-      // Queue the update; render at most once per frame.
-      pendingRef.current = { ...s.item, px: { left, top } }
-      if (rafRef.current === null) {
-        rafRef.current = requestAnimationFrame(flush)
+      // Do not update React state while the cursor is moving. The old path
+      // rebuilt the entire dashboard every frame and animated `left/top`,
+      // which is why a busy workspace could feel sticky. This one style write
+      // per frame stays on the compositor; React receives the final layout
+      // only once on release.
+      s.dragOffset.x = left - s.startPx.left
+      s.dragOffset.y = top - s.startPx.top
+      if (dragRafRef.current === null) {
+        dragRafRef.current = requestAnimationFrame(() => {
+          dragRafRef.current = null
+          const active = stateRef.current
+          if (!active || active.mode !== 'drag' || !active.element) return
+          active.element.style.transform = `translate3d(${active.dragOffset.x}px, ${active.dragOffset.y}px, 0)`
+        })
       }
     } else {
       // Resize must stay clear of neighbours in real time (unlike drag, which
@@ -164,10 +183,33 @@ export function useGridDragResize(opts: {
       // BFS outward from the drop point — the card always settles in the
       // NEAREST free cell (never inside another card's slot).
       const best = findNearestFree(x0, y0, s.item, others, s.grid)
+      const target = best ?? { x: s.item.x, y: s.item.y }
+      // Keep the element visually where the pointer released it while React
+      // commits the snapped grid coordinates, then settle it with one short
+      // compositor-only transform. This prevents the old one-frame jump.
+      if (s.element) {
+        const currentLeft = s.item.x * s.grid.colW + 6 + s.dragOffset.x
+        const currentTop = s.item.y * s.grid.rowH + 6 + s.dragOffset.y
+        const targetLeft = target.x * s.grid.colW + 6
+        const targetTop = target.y * s.grid.rowH + 6
+        s.element.style.transition = 'none'
+        s.element.style.transform = `translate3d(${currentLeft - targetLeft}px, ${currentTop - targetTop}px, 0)`
+        requestAnimationFrame(() => {
+          const el = s.element
+          if (!el) return
+          el.style.transition = 'transform var(--dur-slow) var(--ease-spring)'
+          el.style.transform = 'translate3d(0, 0, 0)'
+          window.setTimeout(() => {
+            el.style.removeProperty('transform')
+            el.style.removeProperty('transition')
+            el.style.removeProperty('will-change')
+          }, 360)
+        })
+      }
       onChange({
         ...s.item,
-        x: best?.x ?? s.item.x,
-        y: best?.y ?? s.item.y,
+        x: target.x,
+        y: target.y,
         px: undefined
       })
     }
@@ -180,12 +222,19 @@ export function useGridDragResize(opts: {
       if (!grid) return
       e.preventDefault()
       e.stopPropagation()
+      const element = (e.currentTarget as HTMLElement).closest<HTMLElement>('[data-card]')
+      // Clear any prior release-transition before starting another drag.
+      element?.style.removeProperty('transform')
+      element?.style.removeProperty('transition')
+      element?.style.setProperty('will-change', mode === 'drag' ? 'transform' : 'width, height')
       stateRef.current = {
         mode,
         item,
         startMouse: { x: e.clientX, y: e.clientY },
         startPx: item.px ?? { left: item.x * grid.colW, top: item.y * grid.rowH },
         lastPx: item.px ?? { left: item.x * grid.colW, top: item.y * grid.rowH },
+        element,
+        dragOffset: { x: 0, y: 0 },
         grid
       }
       document.body.style.userSelect = 'none'

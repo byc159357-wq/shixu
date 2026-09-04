@@ -131,6 +131,16 @@ html {
   transform: translateY(-1px);
 }
 
+/* Dragging is the one interaction that can update every display frame. The
+   blurred glass material is visually static while a card is in motion, but it
+   is costly for the compositor to repeatedly sample. Temporarily use the same
+   solid card surface so the dragged layer keeps its frame budget. */
+body.is-interacting .lg-card {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dashboard-card-shell:hover,
   .dashboard-card-shell:active {

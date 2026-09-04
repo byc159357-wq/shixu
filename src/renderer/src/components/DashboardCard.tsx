@@ -58,7 +58,7 @@ export function DashboardCard(props: Props) {
     return () => window.removeEventListener('mouseup', onUp)
   }, [dragging, resizing])
 
-  const motion = dragging
+  const motion = resizing
     ? 'none'
     : 'left var(--dur-slow) var(--ease-spring), top var(--dur-slow) var(--ease-spring), width var(--dur-slow) var(--ease-spring), height var(--dur-slow) var(--ease-spring)'
 
@@ -79,7 +79,7 @@ export function DashboardCard(props: Props) {
         // behind a neighbour.
         zIndex: dragging || resizing ? 20 : hover ? 10 : undefined,
         transition: `${motion}, transform var(--dur-fast) var(--ease-out)`,
-        willChange: dragging || resizing ? 'left, top, width, height' : 'auto',
+        willChange: dragging ? 'transform' : resizing ? 'width, height' : 'auto',
         animationDelay: motionIndex === undefined ? undefined : `calc(${motionIndex} * var(--stagger-step))`
       }}
       onMouseEnter={() => setHover(true)}
@@ -87,13 +87,6 @@ export function DashboardCard(props: Props) {
     >
       <div
         className={`card lg-card ${dragging || resizing ? 'lg-card-locked' : ''}`}
-        onPointerMove={(e) => {
-          // Offset-based pointer tracking — updates CSS vars without re-layout,
-          // driving the ::before radial glow (Liquid Glass effect).
-          const el = e.currentTarget
-          el.style.setProperty('--mg-x', `${e.nativeEvent.offsetX}px`)
-          el.style.setProperty('--mg-y', `${e.nativeEvent.offsetY}px`)
-        }}
         style={{
           margin: 0,
           width: '100%',
