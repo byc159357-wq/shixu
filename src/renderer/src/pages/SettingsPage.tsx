@@ -629,11 +629,15 @@ function EmailSettingsCard() {
 function DataSafetyCard() {
   const pushToast = useAppStore((s) => s.pushToast)
   const [openAtLogin, setOpenAtLogin] = useState(false)
+  const [closeBehavior, setCloseBehavior] = useState<Settings['app.closeBehavior']>('ask')
   const [latest, setLatest] = useState<BackupResult | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    void window.workdeck.settings.getAll().then((s: Settings) => setOpenAtLogin(s['app.openAtLogin']))
+    void window.workdeck.settings.getAll().then((s: Settings) => {
+      setOpenAtLogin(s['app.openAtLogin'])
+      setCloseBehavior(s['app.closeBehavior'])
+    })
   }, [])
 
   const run = async (fn: () => Promise<BackupResult | null>) => {
@@ -658,6 +662,12 @@ function DataSafetyCard() {
     setOpenAtLogin(next)
     await window.workdeck.settings.set('app.openAtLogin', next)
     pushToast('success', next ? '已开启开机自启' : '已关闭开机自启')
+  }
+
+  const setClosePreference = async (next: Settings['app.closeBehavior']) => {
+    setCloseBehavior(next)
+    await window.workdeck.settings.set('app.closeBehavior', next)
+    pushToast('success', next === 'ask' ? '下次关闭时将询问' : next === 'quit' ? '关闭时将直接退出软件' : '关闭时将转入后台运行')
   }
 
   return (
@@ -689,6 +699,24 @@ function DataSafetyCard() {
           >
             {openAtLogin ? '开启' : '关闭'}
           </button>
+        </span>
+      </div>
+
+      <div className="file-row">
+        <span className="file-main">
+          <div className="file-name">关闭按钮行为</div>
+          <div className="file-meta">决定点击右上角关闭按钮后的处理方式</div>
+        </span>
+        <span className="file-actions" style={{ minWidth: 154 }}>
+          <Select
+            value={closeBehavior}
+            onChange={(value) => void setClosePreference(value as Settings['app.closeBehavior'])}
+            options={[
+              { value: 'ask', label: '每次询问' },
+              { value: 'quit', label: '直接退出软件' },
+              { value: 'tray', label: '转入后台运行' }
+            ]}
+          />
         </span>
       </div>
 

@@ -25,16 +25,20 @@ describe('SettingsService', () => {
     const s = new SettingsService(db)
     expect(s.get('ui.density')).toBe('default')
     expect(s.get('app.theme')).toBe('dark')
+    expect(s.get('app.closeBehavior')).toBe('ask')
   })
 
   it('persists and reads back a value', () => {
     const s = new SettingsService(db)
     s.set('ui.density', 'compact')
+    s.set('app.closeBehavior', 'tray')
     expect(s.get('ui.density')).toBe('compact')
+    expect(s.get('app.closeBehavior')).toBe('tray')
     // survives reopen
     db.close()
     db = openDb(join(dir, 'test.db'))
     expect(new SettingsService(db).get('ui.density')).toBe('compact')
+    expect(new SettingsService(db).get('app.closeBehavior')).toBe('tray')
   })
 
   it('updates existing values', () => {

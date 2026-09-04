@@ -70,7 +70,7 @@ export interface IpcServices {
 
 export function registerIpc(
   db: Db,
-  opts: { getWindow: () => BrowserWindow | null }
+  opts: { getWindow: () => BrowserWindow | null; quitApp: () => void }
 ): IpcServices {
   const projects = new ProjectService(db)
   const files = new FileReferenceService(db, {
@@ -728,6 +728,7 @@ export function registerIpc(
     return w?.isFullScreen() || w?.isMaximized() || false
   })
   ipcMain.handle(IPC.WINDOW_CLOSE, () => opts.getWindow()?.close())
+  ipcMain.handle(IPC.WINDOW_QUIT, () => opts.quitApp())
 
   // ---------- App ----------
   ipcMain.handle(IPC.APP_VERSION, () => app.getVersion())

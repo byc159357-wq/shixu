@@ -15,7 +15,7 @@ import {
 } from '@phosphor-icons/react'
 import { useAppStore, type Module } from './store'
 import type { SearchResult, ScenarioPreset, AppEntry, BoxKind } from '../../shared/types'
-import { Button, ContextMenuOverlay, ToastStack } from './components/ui'
+import { Button, ContextMenuOverlay, Modal, ToastStack } from './components/ui'
 import { DetailPopover } from './components/DetailPopover'
 import { Logo } from './components/Logo'
 import { StartupIntro } from './components/StartupIntro'
@@ -34,10 +34,31 @@ import { ScenariosPage } from './pages/ScenariosPage'
 
 /* ============ TitleBar ============ */
 function TitleBar() {
+  const [showCloseChoice, setShowCloseChoice] = useState(false)
+
+  const requestClose = async () => {
+    const settings = await window.workdeck.settings.getAll()
+    const behavior = settings['app.closeBehavior']
+    if (behavior === 'quit') {
+      await window.workdeck.window.quit()
+    } else if (behavior === 'tray') {
+      await window.workdeck.window.close()
+    } else {
+      setShowCloseChoice(true)
+    }
+  }
+
+  const chooseClose = async (behavior: 'quit' | 'tray', remember: boolean) => {
+    if (remember) await window.workdeck.settings.set('app.closeBehavior', behavior)
+    if (behavior === 'quit') await window.workdeck.window.quit()
+    else await window.workdeck.window.close()
+  }
+
   return (
-    <div className="titlebar">
-      <div className="titlebar-right">
-        <div className="titlebar-actions">
+    <>
+      <div className="titlebar">
+        <div className="titlebar-right">
+          <div className="titlebar-actions">
           <button
             className="titlebar-btn"
             onClick={() => window.workdeck.window.minimize()}
@@ -54,14 +75,56 @@ function TitleBar() {
           </button>
           <button
             className="titlebar-btn close"
-            onClick={() => window.workdeck.window.close()}
+            onClick={() => void requestClose()}
             aria-label="关闭"
           >
             <X size={14} weight="bold" />
           </button>
+          </div>
         </div>
       </div>
-    </div>
+      {showCloseChoice && (
+        <CloseChoiceDialog
+          onClose={() => setShowCloseChoice(false)}
+          onChoose={(behavior, remember) => void chooseClose(behavior, remember)}
+        />
+      )}
+    </>
+  )
+}
+
+function CloseChoiceDialog({
+  onClose,
+  onChoose
+}: {
+  onClose: () => void
+  onChoose: (behavior: 'quit' | 'tray', remember: boolean) => void
+}) {
+  const [remember, setRemember] = useState(false)
+
+  return (
+    <Modal
+      title="关闭拾序"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>取消</Button>
+          <Button variant="secondary" onClick={() => onChoose('tray', remember)}>后台运行</Button>
+          <Button variant="primary" onClick={() => onChoose('quit', remember)}>退出软件</Button>
+        </>
+      }
+    >
+      <p className="close-choice-copy">要直接退出拾序，还是让它留在后台继续运行？</p>
+      <label className="close-choice-remember">
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={(event) => setRemember(event.target.checked)}
+        />
+        <span>下次不再询问，记住本次选择</span>
+      </label>
+      <p className="close-choice-hint">可随时在「设置 → 数据与常驻」中修改。</p>
+    </Modal>
   )
 }
 

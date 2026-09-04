@@ -114,6 +114,7 @@ export const IPC = {
   WINDOW_UNMAXIMIZE: 'window:unmaximize',
   WINDOW_IS_MAXIMIZED: 'window:isMaximized',
   WINDOW_CLOSE: 'window:close',
+  WINDOW_QUIT: 'window:quit',
   APP_VERSION: 'app:version',
   UPDATE_CHECK: 'update:check',
   UPDATE_DOWNLOAD: 'update:download',

@@ -10,6 +10,7 @@ export interface SettingsMap {
   'app.theme': 'dark' | 'light'
   'app.wallpaper': Wallpaper
   'app.openAtLogin': boolean
+  'app.closeBehavior': 'ask' | 'quit' | 'tray'
 }
 
 const DEFAULTS: SettingsMap = {
@@ -17,7 +18,8 @@ const DEFAULTS: SettingsMap = {
   'app.accentColor': '#7C6FF0',
   'app.theme': 'dark',
   'app.wallpaper': 'none',
-  'app.openAtLogin': false
+  'app.openAtLogin': false,
+  'app.closeBehavior': 'ask'
 }
 
 export class SettingsService {
@@ -50,7 +52,8 @@ export class SettingsService {
       'app.accentColor': this.get('app.accentColor'),
       'app.theme': this.get('app.theme'),
       'app.wallpaper': this.get('app.wallpaper'),
-      'app.openAtLogin': this.get('app.openAtLogin')
+      'app.openAtLogin': this.get('app.openAtLogin'),
+      'app.closeBehavior': this.get('app.closeBehavior')
     }
   }
 }

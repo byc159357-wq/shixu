@@ -134,7 +134,8 @@ const api: WorkdeckApi = {
     maximize: () => ipcRenderer.invoke(IPC.WINDOW_MAXIMIZE),
     unmaximize: () => ipcRenderer.invoke(IPC.WINDOW_UNMAXIMIZE),
     isMaximized: () => ipcRenderer.invoke(IPC.WINDOW_IS_MAXIMIZED),
-    close: () => ipcRenderer.invoke(IPC.WINDOW_CLOSE)
+    close: () => ipcRenderer.invoke(IPC.WINDOW_CLOSE),
+    quit: () => ipcRenderer.invoke(IPC.WINDOW_QUIT)
   },
   app: {
     version: () => ipcRenderer.invoke(IPC.APP_VERSION)

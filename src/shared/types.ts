@@ -154,6 +154,7 @@ export interface Settings {
   'app.theme': 'dark' | 'light'
   'app.wallpaper': Wallpaper
   'app.openAtLogin': boolean
+  'app.closeBehavior': 'ask' | 'quit' | 'tray'
 }
 
 /** Result of creating a database backup snapshot. */
@@ -783,6 +784,7 @@ export interface WorkdeckApi {
     unmaximize: () => Promise<void>
     isMaximized: () => Promise<boolean>
     close: () => Promise<void>
+    quit: () => Promise<void>
   }
   app: {
     version: () => Promise<string>

@@ -151,7 +151,13 @@ if (noGpu) {
 if (hasSingleInstanceLock) app.whenReady().then(() => {
   const dbPath = path.join(app.getPath('userData'), 'workdeck.db')
   db = openDb(dbPath)
-  services = registerIpc(db, { getWindow: () => mainWindow })
+  services = registerIpc(db, {
+    getWindow: () => mainWindow,
+    quitApp: () => {
+      quitting = true
+      app.quit()
+    }
+  })
   createWindow()
 
   // 常驻与数据安全: apply saved 开机自启, create the system tray, and keep an

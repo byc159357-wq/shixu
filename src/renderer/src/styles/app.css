@@ -2244,6 +2244,35 @@ body[data-theme='light'] .lg-card {
   box-shadow: var(--lg-inset-hi), var(--lg-inset-lo), var(--lg-shadow-idle);
 }
 
+.close-choice-copy {
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-body-sm);
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.close-choice-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.25rem;
+  color: var(--text-1);
+  font-size: var(--fs-body-sm);
+  cursor: pointer;
+}
+
+.close-choice-remember input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  accent-color: var(--accent);
+}
+
+.close-choice-hint {
+  margin: 0.35rem 0 0;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
 /* Dark dashboard cards use one even surface. The diagonal liquid-glass
    highlight looked like a large pale spot along the left side of tall cards. */
 body[data-theme='dark'] .lg-card,
