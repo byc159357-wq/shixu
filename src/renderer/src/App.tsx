@@ -19,6 +19,7 @@ import { Button, ContextMenuOverlay, ToastStack } from './components/ui'
 import { DetailPopover } from './components/DetailPopover'
 import { Logo } from './components/Logo'
 import { StartupIntro } from './components/StartupIntro'
+import { RouteTransition } from './components/RouteTransition'
 import { ProjectSwitcher } from './components/ProjectSwitcher'
 import { HomePage } from './pages/HomePage'
 import { ProjectPage } from './pages/ProjectPage'
@@ -650,6 +651,7 @@ export default function App() {
           onComplete={() => setShowStartup(false)}
         />
       )}
+      <RouteTransition route={module} reducedMotion={reducedMotion} />
     </>
   )
 }

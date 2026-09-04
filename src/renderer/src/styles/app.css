@@ -104,6 +104,39 @@ html {
   background: var(--accent);
   will-change: transform;
 }
+
+/* ============ Workspace handoff ============ */
+/* The curtain moves quickly enough not to delay the click, but gives module
+   switches an unmistakable beginning and end instead of a static content swap. */
+.route-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  visibility: hidden;
+  background: var(--surface-1);
+  border-inline-end: 3px solid var(--accent);
+  box-shadow: 14px 0 34px color-mix(in srgb, var(--accent) 16%, transparent);
+  will-change: transform, opacity;
+}
+
+/* Dashboard cards have room for a clear but polite lift. It is applied to the
+   positioned shell rather than the card surface, keeping the resize/drag math
+   and the card's own visual treatments independent. */
+.dashboard-card-shell:hover:not(:has(.lg-card-locked)) {
+  transform: translateY(-4px);
+}
+
+.dashboard-card-shell:active:not(:has(.lg-card-locked)) {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card-shell:hover,
+  .dashboard-card-shell:active {
+    transform: none;
+  }
+}
 /* Interactive surfaces that animate on hover/active are GPU-composited.
    translateZ(0) is the cheapest cross-browser hint; will-change is added
    only on broad shells that actually animate layout-affecting props. */

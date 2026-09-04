@@ -65,7 +65,7 @@ export function DashboardCard(props: Props) {
   return (
     <div
       data-card
-      className={motionIndex === undefined ? undefined : 'motion-stagger-enter'}
+      className={`dashboard-card-shell${motionIndex === undefined ? '' : ' motion-stagger-enter'}`}
       style={{
         position: 'absolute',
         left,
@@ -78,7 +78,7 @@ export function DashboardCard(props: Props) {
         // always see / interact with the focused card, never getting hidden
         // behind a neighbour.
         zIndex: dragging || resizing ? 20 : hover ? 10 : undefined,
-        transition: motion,
+        transition: `${motion}, transform var(--dur-fast) var(--ease-out)`,
         willChange: dragging || resizing ? 'left, top, width, height' : 'auto',
         animationDelay: motionIndex === undefined ? undefined : `calc(${motionIndex} * var(--stagger-step))`
       }}
