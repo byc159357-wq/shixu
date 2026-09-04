@@ -5,7 +5,8 @@ export function Logo({ size = 20 }: { size?: number }) {
       src="./shixu-logo.png"
       width={size}
       height={size}
-      alt="拾序"
+      alt=""
+      aria-hidden="true"
       draggable={false}
       style={{ display: 'block', flexShrink: 0, objectFit: 'contain' }}
     />

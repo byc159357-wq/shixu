@@ -10,6 +10,12 @@
 - 增加数据库与原始素材的一体化备份指引。
 - 持续提升 AI 服务异常提示和模型可用性检测。
 
+## [0.1.3] - 2026-09-04
+
+### 优化
+
+- 放大左上角拾序品牌标识与名称，提升侧栏辨识度。
+
 ## [0.1.2] - 2026-09-04
 
 ### 修复
@@ -43,7 +49,8 @@
 - SQLite 自动备份、手动备份、开机启动与系统托盘设置。
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
-[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.1.2...HEAD
+[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.3
 [0.1.2]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.2
 [0.1.1]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.1
 [0.1.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.0

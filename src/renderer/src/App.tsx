@@ -85,7 +85,7 @@ function SectionCorner() {
   return (
     <div className="section-corner">
       <div className="section-corner-brand">
-        <Logo size={15} />
+        <Logo size={22} />
         <span>拾序</span>
       </div>
       <div className="section-corner-row">

@@ -71,13 +71,13 @@ button, a, [role="button"], .btn, .card, .chip, .ai-skill, .ai-sess, .app-tile,
 .section-corner-brand {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   line-height: 1;
-  color: var(--text-2);
-  opacity: 0.9;
+  color: var(--text);
+  opacity: 1;
 }
 
 /* Bar + section name on one row beneath the brand. */
