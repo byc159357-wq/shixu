@@ -71,6 +71,9 @@ button, a, [role="button"], .btn, .card, .chip, .ai-skill, .ai-sess, .app-tile,
 .section-corner-brand {
   display: flex;
   align-items: center;
+  /* The 40px brand mark should not push the section label downward.  Offset
+     exactly the extra height it adds beyond the former compact 22px mark. */
+  margin-top: -18px;
   gap: 0.5rem;
   font-size: 1.25rem;
   font-weight: 800;
