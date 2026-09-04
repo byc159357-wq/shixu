@@ -2,7 +2,7 @@
 export function Logo({ size = 20 }: { size?: number }) {
   return (
     <img
-      src="/shixu-logo.png"
+      src="./shixu-logo.png"
       width={size}
       height={size}
       alt="拾序"

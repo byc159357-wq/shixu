@@ -10,6 +10,12 @@
 - 增加数据库与原始素材的一体化备份指引。
 - 持续提升 AI 服务异常提示和模型可用性检测。
 
+## [0.1.2] - 2026-09-04
+
+### 修复
+
+- 恢复自定义安装路径：安装时可选择目标文件夹，默认位置仍为“拾序”。
+
 ## [0.1.1] - 2026-09-04
 
 ### 修复
@@ -37,6 +43,7 @@
 - SQLite 自动备份、手动备份、开机启动与系统托盘设置。
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
-[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.1.1...HEAD
+[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.2
 [0.1.1]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.1
 [0.1.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.0
