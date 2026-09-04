@@ -1,7 +1,7 @@
 {
   "name": "shixu",
   "productName": "拾序",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "拾序 - Windows 本地优先个人工作台",
   "private": true,
   "main": "out/main/index.js",
@@ -35,12 +35,14 @@
     "vitest": "^3.2.7"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@heroui/react": "^3.2.4",
     "@heroui/styles": "^3.2.4",
     "@phosphor-icons/react": "^2.1.10",
     "@types/better-sqlite3": "^9.6.0",
     "better-sqlite3": "^13.0.3",
     "electron-updater": "^6.8.9",
+    "gsap": "^3.15.0",
     "imapflow": "^1.7.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

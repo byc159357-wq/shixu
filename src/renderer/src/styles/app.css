@@ -8,6 +8,73 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* ============ Application launch reveal ============ */
+/* The overlay never captures input. It gives the app a clear opening moment
+   while the mounted workspace continues loading in the background. */
+.startup-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--workspace-bg) 94%, transparent);
+  will-change: opacity;
+}
+
+.startup-intro-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 13rem;
+}
+
+.startup-intro-mark {
+  display: grid;
+  place-items: center;
+  width: 5.25rem;
+  height: 5.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 1.5rem;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-card-hover);
+  will-change: transform, opacity;
+}
+
+.startup-intro-wordmark {
+  font-size: 1.4rem;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  color: var(--text-1);
+  will-change: transform, opacity;
+}
+
+.startup-intro-caption {
+  margin-top: 0.45rem;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+  will-change: transform, opacity;
+}
+
+.startup-intro-progress {
+  width: 7rem;
+  height: 1px;
+  margin-top: 1.2rem;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.startup-intro-progress > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: var(--accent);
+  will-change: transform;
+}
 /* Interactive surfaces that animate on hover/active are GPU-composited.
    translateZ(0) is the cheapest cross-browser hint; will-change is added
    only on broad shells that actually animate layout-affecting props. */

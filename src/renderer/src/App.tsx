@@ -18,6 +18,7 @@ import type { SearchResult, ScenarioPreset, AppEntry, BoxKind } from '../../shar
 import { Button, ContextMenuOverlay, ToastStack } from './components/ui'
 import { DetailPopover } from './components/DetailPopover'
 import { Logo } from './components/Logo'
+import { StartupIntro } from './components/StartupIntro'
 import { ProjectSwitcher } from './components/ProjectSwitcher'
 import { HomePage } from './pages/HomePage'
 import { ProjectPage } from './pages/ProjectPage'
@@ -532,10 +533,12 @@ export default function App() {
   const openPalette = useAppStore((s) => s.openPalette)
   const closePalette = useAppStore((s) => s.closePalette)
   const refreshAfterFilesChange = useAppStore((s) => s.refreshAfterFilesChange)
+  const appShellRef = useRef<HTMLDivElement>(null)
+  const [showStartup, setShowStartup] = useState(true)
 
   // Motion preferences: OS-level reduced motion + low-power device detection.
   // Both write to body[data-*] so CSS can downgrade durations in one place.
-  useReducedMotion()
+  const reducedMotion = useReducedMotion()
   useMotionLevel()
 
   // Theme on <body> (dark/light token switching)
@@ -627,17 +630,26 @@ export default function App() {
     .join(' ')
 
   return (
-    <div className={shellClass}>
-      <SectionCorner />
-      <TitleBar />
-      <Dock />
-      <ScenarioCompletionBanner />
-      <Workspace />
-      <DetailPopover />
-      <ProjectSwitcher />
+    <>
+      <div ref={appShellRef} className={shellClass}>
+        <SectionCorner />
+        <TitleBar />
+        <Dock />
+        <ScenarioCompletionBanner />
+        <Workspace />
+        <DetailPopover />
+        <ProjectSwitcher />
         <CommandPalette />
         <ContextMenuOverlay />
         <ToastStack />
       </div>
+      {showStartup && (
+        <StartupIntro
+          appRoot={appShellRef}
+          reducedMotion={reducedMotion}
+          onComplete={() => setShowStartup(false)}
+        />
+      )}
+    </>
   )
 }
