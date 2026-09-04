@@ -11,6 +11,8 @@ interface Props {
   onRemove: (id: string) => void
   onRename: (title: string) => void
   title?: string
+  /** First dashboard cards enter in sequence; later cards stay immediate. */
+  motionIndex?: number
   children: ReactNode
 }
 
@@ -19,7 +21,7 @@ interface Props {
  * parent supplies the pixel grid. Drag/resize handles wire to the hook.
  */
 export function DashboardCard(props: Props) {
-  const { item, grid, onDragStart, onResizeStart, onRemove, onRename, title, children } = props
+  const { item, grid, onDragStart, onResizeStart, onRemove, onRename, title, motionIndex, children } = props
   const [hover, setHover] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [resizing, setResizing] = useState(false)
@@ -63,6 +65,7 @@ export function DashboardCard(props: Props) {
   return (
     <div
       data-card
+      className={motionIndex === undefined ? undefined : 'motion-stagger-enter'}
       style={{
         position: 'absolute',
         left,
@@ -76,7 +79,8 @@ export function DashboardCard(props: Props) {
         // behind a neighbour.
         zIndex: dragging || resizing ? 20 : hover ? 10 : undefined,
         transition: motion,
-        willChange: dragging || resizing ? 'left, top, width, height' : 'auto'
+        willChange: dragging || resizing ? 'left, top, width, height' : 'auto',
+        animationDelay: motionIndex === undefined ? undefined : `calc(${motionIndex} * var(--stagger-step))`
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

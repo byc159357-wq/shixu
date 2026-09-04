@@ -493,6 +493,13 @@ body[data-theme='light'][data-uiAlpha='soft'] {
   }
 }
 
+/* Used where a page contains viewport-fixed controls. Opacity keeps those
+   controls in viewport coordinates while navigation still feels intentional. */
+@keyframes motion-page-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Modal — spring scale-in with subtle lift */
 @keyframes motion-modal-enter {
   from {
@@ -541,6 +548,9 @@ body[data-theme='light'][data-uiAlpha='soft'] {
 
 .motion-page-enter {
   animation: motion-page-enter var(--dur-base) var(--ease-out) backwards;
+}
+.motion-page-fade {
+  animation: motion-page-fade var(--dur-fast) var(--ease-out) backwards;
 }
 .motion-modal-enter {
   animation: motion-modal-enter var(--dur-slow) var(--ease-spring) backwards;

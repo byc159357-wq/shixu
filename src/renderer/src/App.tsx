@@ -180,7 +180,25 @@ function Dock() {
 /* ============ Workspace router ============ */
 function Workspace() {
   const module = useAppStore((s) => s.module)
-  // key={module} forces a remount on module switch so motion-page-enter replays
+  // Page roots are grid children themselves, so an animated wrapper cannot be
+  // used here: `display: contents` does not paint or animate. Apply motion to
+  // the real workspace node after every route commit instead.
+  useLayoutEffect(() => {
+    const pageRoot = document.querySelector<HTMLElement>('.workspace')
+    if (!pageRoot) return
+
+    // Home owns viewport-fixed scroll hints. A transform on its ancestor would
+    // temporarily re-anchor them, so it gets the same quiet entrance as a fade.
+    const motionClass = pageRoot.querySelector('.scroll-hint')
+      ? 'motion-page-fade'
+      : 'motion-page-enter'
+    pageRoot.classList.remove('motion-page-enter', 'motion-page-fade')
+    // Restart the keyframe when returning to a previously visited module.
+    void pageRoot.offsetWidth
+    pageRoot.classList.add(motionClass)
+    return () => pageRoot.classList.remove(motionClass)
+  }, [module])
+
   const page = (() => {
     switch (module) {
       case 'home':
@@ -205,11 +223,7 @@ function Workspace() {
         return <ScenariosPage />
     }
   })()
-  return (
-    <div key={module} className="motion-page-enter" style={{ display: 'contents' }}>
-      {page}
-    </div>
-  )
+  return page
 }
 
 /* ============ Command Palette: global quick launch (Phase 6) ============ */

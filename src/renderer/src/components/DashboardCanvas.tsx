@@ -70,11 +70,12 @@ export function DashboardCanvas({ items, onChange, onRemove }: Props) {
       }}
     >
       <GridBackground grid={renderGrid} />
-      {safeItems.map((item) => (
+      {safeItems.map((item, index) => (
         <DashboardCard
             key={item.id}
             item={item}
             grid={renderGrid}
+            motionIndex={index < 7 ? index : undefined}
             onDragStart={onDragStart}
             onResizeStart={onResizeStart}
             onRemove={onRemove}
