@@ -56,7 +56,7 @@ button, a, [role="button"], .btn, .card, .chip, .ai-skill, .ai-sess, .app-tile,
 .section-corner {
   position: fixed;
   top: calc(1.75rem + 0.5625rem); /* clear the 1.75rem titlebar, sit above the dock */
-  left: 30px;
+  left: 20px;
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -72,9 +72,9 @@ button, a, [role="button"], .btn, .card, .chip, .ai-skill, .ai-sess, .app-tile,
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   line-height: 1;
   color: var(--text);
   opacity: 1;
