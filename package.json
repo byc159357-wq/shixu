@@ -1,10 +1,12 @@
 {
-  "name": "workdeck",
-  "version": "0.1.0",
+  "name": "shixu",
+  "productName": "拾序",
+  "version": "0.1.1",
   "description": "拾序 - Windows 本地优先个人工作台",
   "private": true,
   "main": "out/main/index.js",
   "author": "拾序",
+  "homepage": "https://github.com/byc159357-wq/shixu",
   "scripts": {
     "dev": "set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=&& electron-vite dev",
     "build": "rmdir /s /q out 2>nul & set NODE_OPTIONS=&& electron-vite build",
@@ -46,20 +48,24 @@
     "zustand": "^5.0.15"
   },
   "build": {
-    "appId": "com.workdeck.app",
+    "appId": "com.shixu.app",
     "productName": "拾序",
+    "executableName": "拾序",
+    "copyright": "Copyright © 2026 拾序",
     "directories": {
-      "output": "dist-p10",
+      "output": "dist-shixu",
       "buildResources": "build"
     },
     "publish": [
       {
-        "provider": "generic",
-        "url": "https://updates.workdeck.example.com/releases"
+        "provider": "github",
+        "owner": "byc159357-wq",
+        "repo": "shixu"
       }
     ],
     "files": [
       "out/**/*",
+      "build/icon-app.png",
       "node_modules/**/*",
       "package.json"
     ],
@@ -80,17 +86,23 @@
           ]
         }
       ],
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "artifactName": "${productName}-Setup-${version}.${ext}",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "拾序"
+      "shortcutName": "拾序",
+      "menuCategory": "拾序",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "拾序",
+      "include": "build/installer.nsh",
+      "deleteAppDataOnUninstall": false
     }
   }
 }

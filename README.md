@@ -16,7 +16,7 @@
 
 拾序是一款面向 Windows 的本地优先个人工作台。它不会强迫你重新整理所有资料，而是在现有文件夹之上建立索引，把项目、文件、任务、笔记、日历和 AI 助手连接起来。
 
-当前版本为 **v0.1.0**，处于早期可用阶段。
+当前版本为 **v0.1.1**，处于早期可用阶段。
 
 ## 主要能力
 
@@ -32,9 +32,9 @@
 
 从 [Releases](https://github.com/byc159357-wq/shixu/releases/latest) 下载最新版 Windows 安装包：
 
-**[下载拾序 v0.1.0](https://github.com/byc159357-wq/shixu/releases/download/v0.1.0/Shixu-Setup-0.1.0.exe)**
+请在 Releases 页面下载最新的 `拾序-Setup-<版本>.exe` 安装包。
 
-运行安装程序后，可选择安装目录并创建桌面和开始菜单快捷方式。目前仅提供 Windows x64 构建。
+运行安装程序后，拾序将安装到 `%LOCALAPPDATA%\Programs\拾序`，并创建桌面和开始菜单快捷方式。安装目录内提供 `Uninstall 拾序.exe`，开始菜单中也有“卸载拾序”入口。目前仅提供 Windows x64 构建。
 
 > 仓库当前为私有仓库，下载源码或 Release 时需要登录具有访问权限的 GitHub 账号。
 
@@ -93,8 +93,9 @@ scripts/                 集成与冒烟检查脚本
 
 拾序采用本地优先设计：
 
-- 主数据库：`%APPDATA%\workdeck\workdeck.db`
-- 自动备份：`%APPDATA%\workdeck\workdeck-backups`
+- 主数据库：`%APPDATA%\拾序\workdeck.db`
+- 自动备份：`%APPDATA%\拾序\workdeck-backups`
+- 从 v0.1.0 升级时会自动复制 `%APPDATA%\workdeck` 中的旧数据；旧目录暂时保留作回退备份。
 - 被监控的文件仍保留在原位置，资料库主要保存索引与引用。
 - API Key 使用 Electron `safeStorage` 加密后写入本地设置。
 - 只有在使用天气、邮件、AI 或更新检查等网络功能时，相关请求才会发送到对应服务。
@@ -107,11 +108,10 @@ scripts/                 集成与冒烟检查脚本
 
 ## 版本与计划
 
-- 当前版本：[v0.1.0](https://github.com/byc159357-wq/shixu/releases/tag/v0.1.0)
+- 当前版本：[v0.1.1](https://github.com/byc159357-wq/shixu/releases/tag/v0.1.1)
 - 版本记录：[CHANGELOG.md](CHANGELOG.md)
 - 集成路线图：[workdeck-integration-roadmap](workdeck-integration-roadmap/workdeck-integration-roadmap.html)
 
 ## 许可
 
 本项目目前未开放源代码许可，保留所有权利。详见 [LICENSE](LICENSE)。
-

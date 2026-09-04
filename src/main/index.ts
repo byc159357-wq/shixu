@@ -6,6 +6,7 @@ import { FileWatchService } from './services/file-watch.service'
 import { SettingsService } from './services/settings.service'
 import { BackupService } from './services/backup.service'
 import { isSmokeRun } from './lib/smoke'
+import { resolveUserDataDirectory } from './services/user-data-migration'
 
 let mainWindow: BrowserWindow | null = null
 let db: Db | null = null
@@ -14,6 +15,12 @@ let watcher: FileWatchService | null = null
 let tray: Tray | null = null
 let autoBackupTimer: ReturnType<typeof setInterval> | null = null
 let quitting = false
+
+// Keep the on-disk product identity aligned with the user-facing brand. On the
+// first branded launch, copy the legacy Workdeck profile so existing projects,
+// settings and AI sessions remain available. The legacy directory is retained
+// as a rollback copy and can be removed manually after the migration is checked.
+app.setPath('userData', resolveUserDataDirectory(app.getPath('appData')))
 
 // One desktop instance owns the database, tray and Hermes ACP connection.
 // Starting Workdeck again should focus that instance instead of leaving an old
@@ -42,7 +49,7 @@ function createWindow(): void {
     backgroundColor: '#14151A',
     show: false,
     title: '拾序',
-    icon: nativeImage.createFromPath(path.join(__dirname, '../../build/icon.png')),
+    icon: nativeImage.createFromPath(path.join(__dirname, '../../build/icon-app.png')),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -94,7 +101,7 @@ function setupTray(): void {
   let icon: Electron.NativeImage
   try {
     icon = nativeImage
-      .createFromPath(path.join(__dirname, '../../build/icon.png'))
+      .createFromPath(path.join(__dirname, '../../build/icon-app.png'))
       .resize({ width: 16, height: 16 })
   } catch {
     icon = nativeImage.createEmpty()
