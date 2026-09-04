@@ -1,0 +1,586 @@
+/* ATELIER design tokens — Strict Black & White */
+:root {
+  /* ---------- Colors: pure black / white / greys only ---------- */
+  --bg: #000000;
+  --surface-0: rgba(28, 28, 30, 0.6);
+  --surface-1: rgba(36, 36, 39, 0.78);
+  --surface-2: rgba(46, 46, 50, 0.9);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --text-1: #ffffff;
+  --text-2: #ffffff;
+  --text-3: #ffffff;
+
+  /* Accent = pure contrast (white on dark / black on light). */
+  --accent: #ffffff;
+  --accent-hover: #d6d6db;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+  /* Ink on the accent fill: accent is WHITE here, so its label is black. */
+  --accent-contrast: #000000;
+
+  /* Status colours kept only for function (desaturated); the system
+     reads black/white/grey overall. */
+  --danger: #e5484d;
+  --danger-soft: rgba(229, 72, 77, 0.12);
+  --success: #30a46c;
+  --success-soft: rgba(48, 164, 108, 0.12);
+  --warning: #f5a524;
+  --warning-soft: rgba(245, 165, 36, 0.12);
+
+  /* ---------- Grey scale (neutral chrome) ---------- */
+  --metal-0: #ffffff;
+  --metal-1: #e8e8ea;
+  --metal-2: #c4c4c9;
+  --metal-3: #6e6e73;
+  --metal-4: #1c1c1e;
+  --metal-edge: linear-gradient(160deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.06) 45%, rgba(0, 0, 0, 0.3));
+
+  /* ---------- Semantic surfaces (theme-aware) ---------- */
+  --hover-bg: rgba(255, 255, 255, 0.07);
+  --subtle-bg: rgba(255, 255, 255, 0.09);
+  --selected-bg: rgba(232, 234, 237, 0.16);
+  --selected-border: rgba(232, 234, 237, 0.5);
+  --skeleton-a: rgba(255, 255, 255, 0.04);
+  --skeleton-b: rgba(255, 255, 255, 0.1);
+  --chat-user-bg: rgba(232, 234, 237, 0.1);
+  --chat-ai-bg: rgba(255, 255, 255, 0.035);
+
+  /* Typography (16px base) */
+  /* Latin → SF Pro; CJK → PingFang SC (per request). Shipped purely as a system
+     stack — we bundle no font files. Browsers fall back per-glyph: Latin picks
+     the first font here that has it, CJK the next that does. So:
+       macOS           → SF Pro (Latin) + PingFang SC (CJK)
+       Win+SF/PingFang → SF Pro + PingFang SC
+       Win default     → Segoe UI Variable (Latin) + Microsoft YaHei (CJK) */
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+    'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Segoe UI Variable',
+    'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', Consolas, monospace;
+  --fs-display: 1.875rem; /* 30px */
+  --fs-title: 1.25rem; /* 20px */
+  --fs-body: 0.875rem; /* 14px */
+  --fs-body-sm: 0.8125rem; /* 13px */
+  --fs-caption: 0.75rem; /* 12px */
+  --fs-micro: 0.6875rem; /* 11px */
+  --lh-tight: 1.25;
+  --lh-body: 1.55;
+
+  /* ---------- Typography: Apple-style negative tracking (tightens with size) ---------- */
+  --tr-display: -0.02em; /* headlines */
+  --tr-title: -0.015em; /* section titles */
+  --tr-body: -0.011em; /* body */
+  --tr-caption: -0.01em; /* captions / meta */
+
+  /* ---------- Radius: three-tier system (card 16 / control 8 / pill) ---------- */
+  --radius-lg: 1rem; /* 16px — cards, popovers */
+  --radius-md: 0.5rem; /* 8px — buttons, inputs, rows */
+  --radius-sm: 0.375rem; /* 6px — tiny inline elements */
+  --radius-pill: 999px;
+
+  /* ---------- Shadows (overlays only) ---------- */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.18);
+  --shadow-card-hover: 0 4px 8px rgba(0, 0, 0, 0.25), 0 16px 32px rgba(0, 0, 0, 0.22);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  /* ---------- Glass ---------- */
+  --glass-blur: 20px;
+  --glass-saturate: 1.4;
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* ---------- Liquid Glass → Liquid Metal (iOS 26 style, silver chrome) ---------- */
+  --lg-blur: 24px;
+  --lg-saturate: 1.15;
+  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1); /* easeOutQuint — smooth settle, no overshoot */
+  --lg-sheen: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 62%
+  );
+  --lg-glow-dark: rgba(255, 255, 255, 0.1);
+  --lg-glow-light: rgba(255, 255, 255, 0.65);
+  --lg-tint-dark: rgba(232, 234, 237, 0.06); /* silver refraction wash (dark theme) */
+  --lg-tint-light: rgba(120, 126, 138, 0.07); /* steel refraction wash (light theme) */
+  --lg-tint: var(--lg-tint-dark);
+  --lg-inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.2); /* top light edge = metal thickness */
+  --lg-inset-hi-hover: inset 0 1px 0 rgba(255, 255, 255, 0.34); /* brighter on hover */
+  --lg-inset-lo: inset 0 -1px 0 rgba(0, 0, 0, 0.08); /* bottom rim = refraction */
+  --lg-shadow-idle: 0 2px 4px rgba(10, 12, 16, 0.1), 0 12px 32px rgba(10, 12, 16, 0.16);
+  /* Hover shadow is deliberately subtle: perceived depth comes from the
+     inset highlight + glow + sheen, not from a big drop shadow. */
+  --lg-shadow-hover: 0 2px 6px rgba(10, 12, 16, 0.14), 0 10px 24px rgba(10, 12, 16, 0.14);
+
+  /* ---------- Layout chrome (titlebar / workspace backdrop) ---------- */
+  --titlebar-bg: rgba(20, 21, 26, 0.4);
+  --workspace-bg: transparent;
+
+  /* ---------- Density (Default) ---------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --row-h: 2.75rem; /* 44px list rows */
+  --thumb: 5rem; /* 80px thumbnail grid */
+  --panel-w: 12.5rem; /* context panel 200px */
+  --sidebar-w: 14.5rem; /* 232px */
+  --dock-w: 5.25rem; /* 84px */
+
+  /* ---------- Motion: duration scale (5 steps, 50-400ms) ---------- */
+  --dur-instant: 50ms;
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+  --dur-slower: 400ms;
+  --dur-med: var(--dur-base); /* legacy alias */
+
+  /* ---------- Motion: easing curves (physics-grounded) ---------- */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ---------- Motion: travel distance (small movements stay subtle) ---------- */
+  --motion-distance-sm: 4px;
+  --motion-distance-md: 8px;
+  --motion-distance-lg: 16px;
+
+  /* ---------- Motion: stagger step for sequenced entrance ---------- */
+  --stagger-step: 35ms;
+}
+
+/* ============ Light theme ============ */
+body[data-theme='light'] {
+  /* ---------- Pure white canvas ---------- */
+  --bg: #ffffff;
+  /* Keep the default light canvas flat. A large radial wash is visible through
+     the transparent titlebar/workspace gutters as broad contour bands. */
+  background: #ffffff;
+  --surface-0: rgba(255, 255, 255, 0.85);
+  --surface-1: rgba(255, 255, 255, 0.95);
+  --surface-2: rgba(255, 255, 255, 1);
+  --lg-tint: var(--lg-tint-light);
+
+  /* ---------- Borders: hairline grey ---------- */
+  --border: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.24);
+
+  /* ---------- Text: ink black ---------- */
+  --text-1: #000000;
+  --text-2: #000000;
+  --text-3: #111111;
+
+  /* ---------- Accent: pure black ---------- */
+  --accent: #000000;
+  --accent-hover: #333336;
+  --accent-soft: rgba(0, 0, 0, 0.06);
+  --accent-contrast: #ffffff;
+
+  /* ---------- Status colors: muted for light bg ---------- */
+  --danger: #b33933;
+  --danger-soft: rgba(179, 57, 51, 0.08);
+  --success: #197a4a;
+  --success-soft: rgba(25, 122, 74, 0.08);
+  --warning: #8a5a00;
+  --warning-soft: rgba(138, 90, 0, 0.1);
+
+  /* ---------- Semantic surfaces ---------- */
+  --hover-bg: rgba(0, 0, 0, 0.05);
+  --subtle-bg: rgba(0, 0, 0, 0.07);
+  --selected-bg: rgba(0, 0, 0, 0.08);
+  --selected-border: rgba(0, 0, 0, 0.4);
+  --skeleton-a: rgba(0, 0, 0, 0.04);
+  --skeleton-b: rgba(0, 0, 0, 0.1);
+  --chat-user-bg: rgba(0, 0, 0, 0.05);
+  --chat-ai-bg: rgba(0, 0, 0, 0.03);
+
+  /* ---------- Shadows: subtle elevation ---------- */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.08), 0 8px 20px rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.14);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  /* ---------- Layout chrome (light overrides) ---------- */
+  --titlebar-bg: rgba(255, 255, 255, 0.55);
+  --workspace-bg: transparent;
+}
+
+/* ============ Hermes Agent theme ============
+   The revised "张扬蓝 + 纯白组件" skin, in the spirit of the Hermes
+   Agent site: a vivid Klein-blue canvas with pure-white components and
+   inverse (white-on-blue) interaction states. Blue is no longer an
+   accent on white — it IS the ground; components sit white on top. */
+body[data-theme='hermes'] {
+  /* ---------- Vivid blue canvas: flat, no gradient ---------- */
+  --bg: #1a28f5;
+  background: #1a28f5;
+  --surface-0: rgba(255, 255, 255, 0.9);
+  --surface-1: rgba(255, 255, 255, 0.96);
+  --surface-2: #ffffff;
+  --lg-tint: var(--lg-tint-light);
+
+  /* ---------- Hairlines: inside the white components ---------- */
+  --border: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.26);
+
+  /* ---------- Text: ink, lives ON the white components ---------- */
+  --text-1: #000000;
+  --text-2: #000000;
+  --text-3: #000000;
+
+  /* ---------- Accent: vivid blue for inverse buttons/rows ---------- */
+  --accent: #1a28f5;
+  --accent-hover: #2c3dff;
+  --accent-soft: rgba(26, 40, 245, 0.08);
+  --accent-contrast: #ffffff;
+  --selected-bg: rgba(26, 40, 245, 0.08);
+  --selected-border: rgba(26, 40, 245, 0.5);
+
+  /* ---------- Status colors: muted, keep blue-family identity ---------- */
+  --danger: #b33933;
+  --danger-soft: rgba(179, 57, 51, 0.08);
+  --success: #197a4a;
+  --success-soft: rgba(25, 122, 74, 0.08);
+  --warning: #8a5a00;
+  --warning-soft: rgba(138, 90, 0, 0.1);
+
+  /* ---------- Semantic surfaces (on white components) ---------- */
+  --hover-bg: rgba(26, 40, 245, 0.06);
+  --subtle-bg: rgba(0, 0, 0, 0.07);
+  --skeleton-a: rgba(0, 0, 0, 0.04);
+  --skeleton-b: rgba(0, 0, 0, 0.1);
+  --chat-user-bg: rgba(26, 40, 245, 0.06);
+  --chat-ai-bg: rgba(0, 0, 0, 0.03);
+
+  /* ---------- Shadows: blue-tinted lift so white floats on blue ---------- */
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.24), 0 12px 30px rgba(10, 14, 90, 0.34);
+  --shadow-card-hover: 0 2px 0 rgba(255, 255, 255, 0.3), 0 20px 48px rgba(8, 11, 80, 0.44);
+  --shadow-modal: 0 24px 64px rgba(8, 12, 90, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-pop: 0 10px 30px rgba(12, 17, 100, 0.4);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+
+  /* ---------- Layout chrome: title bar melts into the blue ---------- */
+  --titlebar-bg: rgba(13, 17, 92, 0.42);
+  --workspace-bg: transparent;
+
+  /* Headings weight stays heavy; colour is forced white on the blue
+     canvas by app.css only where text sits directly on the ground. */
+  h1,
+  h2,
+  h3 {
+    font-weight: 650;
+  }
+}
+
+/* Wallpaper variants — all monochrome (silver/chrome). Colour is gone;
+   the liquid-metal swirl layer (MetallicBackground) supplies the fluid
+   feel on top of these flat metallic bases. */
+body[data-theme='light'][data-wallpaper='aurora'] {
+  background:
+    radial-gradient(900px 700px at 50% -20%, rgba(0, 0, 0, 0.06), transparent 70%),
+    #ffffff;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+}
+
+body[data-theme='light'][data-wallpaper='dusk'] {
+  background:
+    radial-gradient(700px 500px at 50% 0%, rgba(0, 0, 0, 0.05), transparent 70%),
+    #ffffff;
+}
+
+body[data-theme='light'][data-wallpaper='midnight'] {
+  background:
+    radial-gradient(900px 700px at 50% 110%, rgba(0, 0, 0, 0.05), transparent 70%),
+    #fafafa;
+}
+
+/* Density: Compact (Library / Calendar / Palette defaults, user-switchable) */
+body[data-density='compact'] {
+  --space-1: 0.1875rem;
+  --space-2: 0.375rem;
+  --space-3: 0.5rem;
+  --space-4: 0.75rem;
+  --space-6: 1rem;
+  --space-8: 1.5rem;
+  --row-h: 2.25rem; /* 36px */
+  --thumb: 4rem; /* 64px */
+  --fs-body: 0.8125rem;
+}
+
+/* Density: Comfortable */
+body[data-density='comfortable'] {
+  --space-1: 0.375rem;
+  --space-2: 0.75rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --row-h: 3.5rem; /* 56px */
+  --thumb: 6rem; /* 96px */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  letter-spacing: var(--tr-body);
+  color: var(--text-1);
+  background: var(--bg);
+  overflow: hidden;
+  user-select: none;
+  transition: font-size var(--dur-fast) var(--ease-out);
+}
+
+/* ---------- Typography: theme-aware ----------
+   Both themes share the same system font stack, but black/white rendering is
+   not symmetric:
+   - Dark (default): white hairlines on black can bloom on LCD; keep smoothing
+     antialiased and give the smallest text a touch more air so thin CJK/Latin
+     strokes stay crisp instead of merging.
+   - Light: ink on pure white is already high-contrast; the same font renders
+     sharp at normal tracking, and headings can take fractionally more weight
+     without smearing. */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+body[data-theme='dark'] .file-meta,
+body[data-theme='dark'] .dd-value,
+body[data-theme='dark'] .hint {
+  letter-spacing: 0.005em;
+}
+body[data-theme='light'] h1,
+body[data-theme='light'] h2,
+body[data-theme='light'] h3 {
+  font-weight: 650;
+}
+
+/* ============ Wallpaper layer (app-internal, zero window risk) ============
+   All variants monochrome (silver/chrome); the liquid-metal swirl layer
+   (MetallicBackground) supplies the fluid feel. */
+body[data-wallpaper='aurora'] {
+  background:
+    radial-gradient(900px 700px at 50% -20%, rgba(255, 255, 255, 0.05), transparent 70%),
+    #000000;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+}
+
+body[data-wallpaper='dusk'] {
+  background:
+    radial-gradient(700px 500px at 50% 0%, rgba(255, 255, 255, 0.04), transparent 70%),
+    #000000;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+}
+
+body[data-wallpaper='midnight'] {
+  background:
+    radial-gradient(900px 700px at 50% 110%, rgba(255, 255, 255, 0.05), transparent 70%),
+    linear-gradient(160deg, #050505 0%, #000000 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, black 4%, black 96%, transparent 100%);
+}
+
+/* ============ Light-family wallpapers (silver-grey, work with either theme) ============ */
+body[data-wallpaper='porcelain'] {
+  background:
+    radial-gradient(900px 700px at 50% -20%, rgba(0, 0, 0, 0.05), transparent 70%),
+    #ffffff;
+}
+
+body[data-wallpaper='dawn'] {
+  background:
+    radial-gradient(700px 500px at 50% 0%, rgba(0, 0, 0, 0.04), transparent 70%),
+    #fafafa;
+}
+
+body[data-wallpaper='spring'] {
+  background:
+    radial-gradient(900px 700px at 50% 110%, rgba(0, 0, 0, 0.04), transparent 70%),
+    #f5f5f7;
+}
+
+/* ============ Appearance customization (user-switchable, on <body>) ============
+   Placed after both theme blocks so equal- or higher-specificity rules here win
+   regardless of dark / light / wallpaper. */
+body[data-uiRadius='sharp'] {
+  --radius-lg: 0.625rem; /* 10px */
+  --radius-md: 0.375rem; /* 6px */
+}
+body[data-uiRadius='round'] {
+  --radius-lg: 1.375rem; /* 22px */
+  --radius-md: 0.75rem; /* 12px */
+}
+
+/* Glass alpha: tune surfaces toward more/less transparency. */
+body[data-uiAlpha='crisp'] {
+  --surface-0: rgba(28, 28, 30, 0.82);
+  --surface-1: rgba(34, 34, 37, 0.92);
+  --surface-2: rgba(44, 44, 48, 1);
+}
+body[data-theme='light'][data-uiAlpha='crisp'] {
+  --surface-0: rgba(255, 255, 255, 0.94);
+  --surface-1: rgba(255, 255, 255, 0.97);
+}
+body[data-uiAlpha='soft'] {
+  --surface-0: rgba(28, 28, 30, 0.45);
+  --surface-1: rgba(34, 34, 37, 0.55);
+  --surface-2: rgba(44, 44, 48, 0.7);
+}
+body[data-theme='light'][data-uiAlpha='soft'] {
+  --surface-0: rgba(255, 255, 255, 0.62);
+  --surface-1: rgba(255, 255, 255, 0.75);
+}
+
+/* Styling accent: black/white only. Colored accent presets (sky/emerald/
+   violet/coral/rose) were removed to keep the system strictly monochrome.
+   'silver' (the store default) or any other value falls back to the neutral
+   white-on-dark / black-on-light accent defined in :root and the light block. */
+
+/* Focus ring: keyboard navigation visible, accent 2px */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Scrollbars are hidden app-wide: scrolling works via wheel / drag / edge
+   buttons, and the visual track+thumb only add noise on every theme. */
+::-webkit-scrollbar,
+::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-track {
+  background: transparent;
+  width: 0;
+  height: 0;
+}
+
+/* ============ Keyframes for the motion system ============ */
+/* Page switch — soft fade + tiny lift */
+@keyframes motion-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-md));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal — spring scale-in with subtle lift */
+@keyframes motion-modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(var(--motion-distance-md));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Backdrop — soft fade only */
+@keyframes motion-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Stagger entrance — items slide up + fade in, delay set inline */
+@keyframes motion-stagger-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-sm));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Card lift — hover affordance */
+@keyframes motion-card-lift {
+  from {
+    transform: translateY(0);
+    box-shadow: var(--shadow-card);
+  }
+  to {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+
+.motion-page-enter {
+  animation: motion-page-enter var(--dur-base) var(--ease-out) backwards;
+}
+.motion-modal-enter {
+  animation: motion-modal-enter var(--dur-slow) var(--ease-spring) backwards;
+}
+.motion-backdrop-enter {
+  animation: motion-backdrop-enter var(--dur-base) var(--ease-out) backwards;
+}
+.motion-stagger-enter {
+  animation: motion-stagger-enter var(--dur-base) var(--ease-out) backwards;
+}
+
+/* ============ Accessibility: reduced-motion + low-power devices ============ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 1ms;
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+    --dur-slower: 1ms;
+    --dur-med: 1ms;
+    --ease-spring: linear;
+    --ease-bounce: linear;
+    --stagger-step: 1ms;
+  }
+}
+
+/* Honor the runtime flag set by useReducedMotion() too (covers in-app toggle + initial mount) */
+body[data-reduced-motion='reduce'] *,
+body[data-reduced-motion='reduce'] *::before,
+body[data-reduced-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Low-power devices — same conservative fallbacks */
+body[data-motion-level='low'] *,
+body[data-motion-level='low'] *::before,
+body[data-motion-level='low'] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}

@@ -1,0 +1,96 @@
+{
+  "name": "workdeck",
+  "version": "0.1.0",
+  "description": "拾序 - Windows 本地优先个人工作台",
+  "private": true,
+  "main": "out/main/index.js",
+  "author": "拾序",
+  "scripts": {
+    "dev": "set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=&& electron-vite dev",
+    "build": "rmdir /s /q out 2>nul & set NODE_OPTIONS=&& electron-vite build",
+    "start": "set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=&& electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test": "set NODE_OPTIONS=&& vitest run",
+    "rebuild": "set NODE_OPTIONS=&& electron-rebuild -f -w better-sqlite3",
+    "smoke": "npm run build && set ELECTRON_RUN_AS_NODE=&& electron . --smoke --no-sandbox --disable-gpu --disable-gpu-compositing",
+    "pack": "npm run build && set NODE_OPTIONS=&& electron-builder --win --x64 --publish never",
+    "pack:dir": "npm run build && set NODE_OPTIONS=&& electron-builder --win --x64 --dir --publish never"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.4.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "@heroui/react": "^3.2.4",
+    "@heroui/styles": "^3.2.4",
+    "@phosphor-icons/react": "^2.1.10",
+    "@types/better-sqlite3": "^9.6.0",
+    "better-sqlite3": "^13.0.3",
+    "electron-updater": "^6.8.9",
+    "imapflow": "^1.7.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "ws": "^8.21.3",
+    "zustand": "^5.0.15"
+  },
+  "build": {
+    "appId": "com.workdeck.app",
+    "productName": "拾序",
+    "directories": {
+      "output": "dist-p10",
+      "buildResources": "build"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://updates.workdeck.example.com/releases"
+      }
+    ],
+    "files": [
+      "out/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ],
+    "disableSanityCheckAsar": true,
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "拾序"
+    }
+  }
+}
