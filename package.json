@@ -1,14 +1,14 @@
 {
   "name": "shixu",
   "productName": "拾序",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "拾序 - Windows 本地优先个人工作台",
   "private": true,
   "main": "out/main/index.js",
   "author": "拾序",
   "homepage": "https://github.com/byc159357-wq/shixu",
   "scripts": {
-    "dev": "set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=&& electron-vite dev",
+    "dev": "set SHIXU_DEV_PREVIEW=1&& set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=&& electron-vite dev",
     "build": "rmdir /s /q out 2>nul & set NODE_OPTIONS=&& electron-vite build",
     "start": "set ELECTRON_RUN_AS_NODE=&& set NODE_OPTIONS=&& electron-vite preview",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",

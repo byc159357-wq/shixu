@@ -485,6 +485,21 @@ export interface ScenarioSuggestion {
   lastAt: string
 }
 
+/** A reviewed, non-destructive scenario proposal. It never launches or saves
+ * anything until the user explicitly accepts it. */
+export interface ScenarioCandidate {
+  id: string
+  name: string
+  summary: string
+  evidence: string
+  items: SceneItem[]
+  confidence: number
+  occurrences: number
+  lastAt: string
+  status: 'pending' | 'saved' | 'dismissed' | 'blocked'
+  createdAt: string
+}
+
 export interface EmailConfigInfo {
   email: string
   host: string
@@ -644,6 +659,10 @@ export interface WorkdeckApi {
     remove: (id: string) => Promise<void>
     renameWithAi: (id: string) => Promise<string>
     learn: () => Promise<ScenarioSuggestion[]>
+    candidates: () => Promise<ScenarioCandidate[]>
+    reviewDaily: () => Promise<ScenarioCandidate[]>
+    acceptCandidate: (id: string) => Promise<ScenarioPreset>
+    dismissCandidate: (id: string, permanent?: boolean) => Promise<void>
     apply: (id: string) => Promise<{ ok: boolean; errors: string[] }>
     /** Open a raw batch of items (used by the “补齐剩余项” flow). */
     applyItems: (items: SceneItem[]) => Promise<{ ok: boolean; errors: string[] }>

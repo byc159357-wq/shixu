@@ -16,11 +16,21 @@ let tray: Tray | null = null
 let autoBackupTimer: ReturnType<typeof setInterval> | null = null
 let quitting = false
 
+// A local dev preview needs an independent profile and lock so it can run
+// alongside the installed app without touching the user's real workspace.
+const isDevPreview = process.env['SHIXU_DEV_PREVIEW'] === '1'
+if (isDevPreview) app.setName('拾序开发预览')
+
 // Keep the on-disk product identity aligned with the user-facing brand. On the
 // first branded launch, copy the legacy Workdeck profile so existing projects,
 // settings and AI sessions remain available. The legacy directory is retained
 // as a rollback copy and can be removed manually after the migration is checked.
-app.setPath('userData', resolveUserDataDirectory(app.getPath('appData')))
+app.setPath(
+  'userData',
+  isDevPreview
+    ? path.join(app.getPath('appData'), '拾序开发预览')
+    : resolveUserDataDirectory(app.getPath('appData'))
+)
 
 // One desktop instance owns the database, tray and Hermes ACP connection.
 // Starting Workdeck again should focus that instance instead of leaving an old

@@ -149,6 +149,31 @@ export function registerIpc(
   // when that gateway is unavailable.
   hermes.warmup()
 
+  // Daily scenario review is deliberately conservative: Hermes only receives a
+  // locally-filtered metadata summary after the repetition threshold passed.
+  scenario.setReviewer(async (candidate) => {
+    const prompt = [
+      '你是拾序的场景策展人。仅根据下面的本地打开记录摘要，给稳定工作组合起名并写一句说明。',
+      '不要执行工具、不要建议打开任何内容、不要猜测文件内容。只输出 JSON：{"name":"不超过8字","summary":"不超过60字"}。',
+      JSON.stringify(candidate)
+    ].join('\n')
+    const reply = await hermes.send(prompt, { sessionKey: 'shixu-scenario-daily-review', reset: true })
+    try {
+      const cleaned = reply.replace(/```json/gi, '').replace(/```/g, '').trim()
+      const start = cleaned.indexOf('{')
+      const end = cleaned.lastIndexOf('}')
+      if (start < 0 || end <= start) return null
+      const parsed = JSON.parse(cleaned.slice(start, end + 1)) as { name?: unknown; summary?: unknown }
+      return {
+        name: typeof parsed.name === 'string' ? parsed.name : undefined,
+        summary: typeof parsed.summary === 'string' ? parsed.summary : undefined
+      }
+    } catch {
+      return null
+    }
+  })
+  void scenario.reviewDaily().catch((error) => console.warn('[scenario] daily review failed:', String(error)))
+
   // Agent hub: pluggable external AI software. Hermes + the Settings→AI quick
   // OpenAI-compat connector are live; user-registered profiles (重）plus
   // reserved Trae/WorkBuddy seats round out the roster.
@@ -589,6 +614,12 @@ export function registerIpc(
   ipcMain.handle(IPC.SCENARIO_REMOVE, (_e, payload: { id: string }) => scenario.remove(payload.id))
   ipcMain.handle(IPC.SCENARIO_RENAME_AI, (_e, payload: { id: string }) => scenario.renameWithAi(payload.id))
   ipcMain.handle(IPC.SCENARIO_LEARN, () => scenario.learn())
+  ipcMain.handle(IPC.SCENARIO_CANDIDATES, () => scenario.listCandidates())
+  ipcMain.handle(IPC.SCENARIO_REVIEW_DAILY, () => scenario.reviewDaily())
+  ipcMain.handle(IPC.SCENARIO_ACCEPT_CANDIDATE, (_e, payload: { id: string }) => scenario.acceptCandidate(payload.id))
+  ipcMain.handle(IPC.SCENARIO_DISMISS_CANDIDATE, (_e, payload: { id: string; permanent?: boolean }) =>
+    scenario.dismissCandidate(payload.id, payload.permanent)
+  )
   ipcMain.handle(IPC.SCENARIO_APPLY, (_e, payload: { id: string }) => scenario.apply(payload.id))
   ipcMain.handle(IPC.SCENARIO_APPLY_ITEMS, (_e, payload: { items: SceneItem[] }) =>
     scenario.applyItems(payload.items)

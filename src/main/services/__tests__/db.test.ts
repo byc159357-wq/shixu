@@ -21,7 +21,7 @@ describe('db', () => {
 
   it('creates schema v1 and applies migrations on open', () => {
     db = openDb(dbPath)
-    expect(db.pragma('user_version', { simple: true })).toBe(9)
+    expect(db.pragma('user_version', { simple: true })).toBe(10)
 
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
@@ -40,6 +40,7 @@ describe('db', () => {
     expect(tables).toContain('audit_log')
     expect(tables).toContain('open_log')
     expect(tables).toContain('scenario_presets')
+    expect(tables).toContain('scenario_candidates')
     // v9 added the friendly display_name column to watched_folders
     const wfCols = db
       .prepare(`PRAGMA table_info(watched_folders)`)
@@ -52,13 +53,13 @@ describe('db', () => {
     db = openDb(dbPath)
     db.close()
     db = openDb(dbPath)
-    expect(db.pragma('user_version', { simple: true })).toBe(9)
+    expect(db.pragma('user_version', { simple: true })).toBe(10)
   })
 
   it('migrate() on an already-migrated db is a no-op', () => {
     db = openDb(dbPath)
     expect(() => migrate(db)).not.toThrow()
-    expect(db.pragma('user_version', { simple: true })).toBe(9)
+    expect(db.pragma('user_version', { simple: true })).toBe(10)
   })
 
   it('uses WAL journal mode', () => {

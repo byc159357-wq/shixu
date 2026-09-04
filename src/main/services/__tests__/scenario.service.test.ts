@@ -184,6 +184,35 @@ describe('ScenarioService', () => {
     expect(s[0].name).toBe('Photoshop.exe、素材')
   })
 
+  it('creates only a reviewed daily candidate for a repeated multi-day work pattern', async () => {
+    put('/ps.exe', 'Photoshop.exe', 'apps', '2026-09-01T09:00:00.000Z')
+    put('/mat', '素材', 'folders', '2026-09-01T09:02:00.000Z')
+    put('/ps.exe', 'Photoshop.exe', 'apps', '2026-09-02T09:00:00.000Z')
+    put('/mat', '素材', 'folders', '2026-09-02T09:02:00.000Z')
+    // A one-off pair in the same period must not become another candidate.
+    put('/temp.txt', '临时.txt', 'docs', '2026-09-02T11:00:00.000Z')
+    put('/other.txt', '其他.txt', 'docs', '2026-09-02T11:02:00.000Z')
+    put('/ps.exe', 'Photoshop.exe', 'apps', '2026-09-02T12:00:00.000Z')
+    put('/mat', '素材', 'folders', '2026-09-02T12:02:00.000Z')
+
+    svc.setReviewer(async () => ({ name: '海报制作', summary: '稳定的设计工作组合。' }))
+    const candidates = await svc.reviewDaily(new Date('2026-09-03T09:00:00.000Z'))
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0]).toMatchObject({ name: '海报制作', occurrences: 3, status: 'pending' })
+
+    const preset = svc.acceptCandidate(candidates[0].id)
+    expect(preset.name).toBe('海报制作')
+    expect(svc.listCandidates()).toEqual([])
+  })
+
+  it('does not turn a one-off or noisy session into a daily candidate', async () => {
+    put('/tmp/a.txt', 'a.txt', 'docs', '2026-09-02T09:00:00.000Z')
+    put('/tmp/b.txt', 'b.txt', 'docs', '2026-09-02T09:02:00.000Z')
+    put('C:\\Users\\a\\AppData\\Local\\Temp\\x.tmp', 'x.tmp', 'docs', '2026-09-03T09:00:00.000Z')
+    put('/c.txt', 'c.txt', 'docs', '2026-09-03T09:02:00.000Z')
+    expect(await svc.reviewDaily(new Date('2026-09-04T09:00:00.000Z'))).toEqual([])
+  })
+
   it('suggestedName joins up to three items and summarizes longer sets', () => {
     expect(
       suggestedName([

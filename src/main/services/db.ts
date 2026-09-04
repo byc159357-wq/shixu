@@ -228,6 +228,30 @@ const MIGRATIONS: Migration[] = [
     up: (db) => {
       db.exec(`ALTER TABLE watched_folders ADD COLUMN display_name TEXT DEFAULT NULL`)
     }
+  },
+  {
+    version: 10,
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scenario_candidates (
+          id          TEXT PRIMARY KEY,
+          source_key  TEXT NOT NULL UNIQUE,
+          name        TEXT NOT NULL,
+          summary     TEXT NOT NULL DEFAULT '',
+          evidence    TEXT NOT NULL DEFAULT '',
+          items_json  TEXT NOT NULL DEFAULT '[]',
+          confidence  INTEGER NOT NULL DEFAULT 0,
+          occurrences INTEGER NOT NULL DEFAULT 0,
+          last_at     TEXT NOT NULL,
+          status      TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending','saved','dismissed','blocked')),
+          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_scenario_candidate_status
+          ON scenario_candidates(status, updated_at DESC);
+      `)
+    }
   }
 ]
 

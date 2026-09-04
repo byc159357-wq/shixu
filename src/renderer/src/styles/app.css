@@ -87,6 +87,8 @@ button, a, [role="button"], .btn, .card, .chip, .ai-skill, .ai-sess, .app-tile,
 .section-corner-row {
   display: flex;
   align-items: center;
+  /* Align the section marker with the floating navigation rail below. */
+  margin-left: 0.5rem;
   gap: 0.625rem;
 }
 

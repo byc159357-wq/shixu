@@ -10,6 +10,19 @@
 - 增加数据库与原始素材的一体化备份指引。
 - 持续提升 AI 服务异常提示和模型可用性检测。
 
+## [0.2.0] - 2026-09-04
+
+### 新增
+
+- 场景新增“AI 场景建议”：每日首次启动时在后台复盘上一次稳定工作时段，候选须由用户确认后才保存。
+- Hermes 会对通过本地筛选的行为摘要生成场景名称与说明；不可用时自动保留本地规则结果。
+- 候选支持保存、暂时忽略（30 天）和“不再推荐”，并展示重复次数、跨天证据与可信度。
+
+### 优化
+
+- 场景学习改为跨天重复且至少两项的稳定组合，过滤临时目录、系统工具与截图类噪音。
+- 开发预览可与正式版同时运行，使用独立数据目录。
+
 ## [0.1.5] - 2026-09-04
 
 ### 修复
@@ -61,7 +74,8 @@
 - SQLite 自动备份、手动备份、开机启动与系统托盘设置。
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
-[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.1.5...HEAD
+[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.2.0
 [0.1.5]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.5
 [0.1.4]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.4
 [0.1.3]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.3

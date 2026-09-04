@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Db } from './db'
 import { OpenLogService, type OpenLogKind, type OpenLogRow } from './open-log.service'
-import type { SceneItem, ScenarioPreset, ScenarioSuggestion } from '../../shared/types'
+import type { SceneItem, ScenarioCandidate, ScenarioPreset, ScenarioSuggestion } from '../../shared/types'
 
 /**
  * Scenario presets (场景预设) — V2 of the “帮我准备工作” story.
@@ -20,6 +20,8 @@ import type { SceneItem, ScenarioPreset, ScenarioSuggestion } from '../../shared
 const SESSION_GAP_MS = 25 * 60 * 1000 // a new session starts after this pause
 const SESSION_WINDOW_MS = 6 * 60 * 60 * 1000 // a single session never spans past this
 const LEARN_ROWS = 1500 // how much open_log history we mine
+const DAILY_REVIEW_KEY = 'scenario.dailyReviewDate'
+const CANDIDATE_SNOOZE_MS = 30 * 24 * 60 * 60 * 1000
 
 interface PresetRow {
   id: string
@@ -27,6 +29,21 @@ interface PresetRow {
   description: string
   items_json: string
   auto: number
+  created_at: string
+  updated_at: string
+}
+
+interface CandidateRow {
+  id: string
+  source_key: string
+  name: string
+  summary: string
+  evidence: string
+  items_json: string
+  confidence: number
+  occurrences: number
+  last_at: string
+  status: ScenarioCandidate['status']
   created_at: string
   updated_at: string
 }
@@ -46,6 +63,29 @@ export interface ScenePatch {
 /** Batch-renamer: given one list of items per candidate, return a short name
  *  per candidate, or `null` to fall back to the derived name for all. */
 export type SceneNamer = (groups: SceneItem[][]) => Promise<string[] | null>
+
+export type SceneReviewer = (input: {
+  items: SceneItem[]
+  occurrences: number
+  distinctDays: number
+  lastAt: string
+}) => Promise<{ name?: string; summary?: string } | null>
+
+function localDay(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+}
+
+function isNoise(item: SceneItem): boolean {
+  const path = item.path.toLowerCase()
+  const name = item.name.toLowerCase()
+  return (
+    path.includes('\\appdata\\local\\temp\\') ||
+    path.includes('\\windows\\') ||
+    /^(explorer|settings|taskmgr|cmd|powershell)(\.exe)?$/.test(name) ||
+    /^screenshot|^微信截图/.test(item.name)
+  )
+}
 
 /** Fallback name: the top few item names joined (also used by the renderer). */
 export function suggestedName(items: SceneItem[]): string {
@@ -132,6 +172,7 @@ function signature(items: SceneItem[]): string {
 
 export class ScenarioService {
   private openLog: OpenLogService
+  private reviewer: SceneReviewer | null = null
 
   constructor(
     private db: Db,
@@ -142,6 +183,110 @@ export class ScenarioService {
   ) {
     // Assign after `db` is set — field-initializer order across compilers is unreliable.
     this.openLog = new OpenLogService(this.db)
+  }
+
+  setReviewer(reviewer: SceneReviewer | null): void {
+    this.reviewer = reviewer
+  }
+
+  listCandidates(): ScenarioCandidate[] {
+    const rows = this.db
+      .prepare(`SELECT * FROM scenario_candidates WHERE status = 'pending' ORDER BY confidence DESC, updated_at DESC`)
+      .all() as CandidateRow[]
+    return rows.map(deserializeCandidate)
+  }
+
+  /**
+   * Runs once per local calendar day when the app starts. The last completed
+   * work burst is first filtered locally; only a repeated, multi-day pattern
+   * is eligible for an optional Hermes review. No candidate is auto-saved.
+   */
+  async reviewDaily(now = new Date()): Promise<ScenarioCandidate[]> {
+    const today = localDay(now.toISOString())
+    const reviewed = this.setting(DAILY_REVIEW_KEY)
+    if (reviewed === today) return this.listCandidates()
+
+    const rows = this.openLog.recent(LEARN_ROWS).reverse()
+    const sessions = splitSessions(rows)
+    const last = sessions.at(-1)
+    if (!last) {
+      this.setSetting(DAILY_REVIEW_KEY, today)
+      return this.listCandidates()
+    }
+
+    const items = distinctSessionItems(last).filter((item) => !isNoise(item))
+    const lastAt = last[last.length - 1]?.opened_at ?? now.toISOString()
+    const sourceKey = signature(items)
+    if (items.length < 2 || !sourceKey) {
+      this.setSetting(DAILY_REVIEW_KEY, today)
+      return this.listCandidates()
+    }
+
+    const matching = sessions
+      .map((session) => ({ session, items: distinctSessionItems(session).filter((item) => !isNoise(item)) }))
+      .filter((entry) => signature(entry.items) === sourceKey)
+    const days = new Set(matching.map((entry) => localDay(entry.session[0]?.opened_at ?? '')))
+    if (matching.length < 2 || days.size < 2) {
+      this.setSetting(DAILY_REVIEW_KEY, today)
+      return this.listCandidates()
+    }
+
+    const existing = this.db.prepare(`SELECT * FROM scenario_candidates WHERE source_key = ?`).get(sourceKey) as CandidateRow | undefined
+    if (existing?.status === 'blocked' || existing?.status === 'saved') {
+      this.setSetting(DAILY_REVIEW_KEY, today)
+      return this.listCandidates()
+    }
+    if (existing?.status === 'dismissed' && now.getTime() - new Date(existing.updated_at).getTime() < CANDIDATE_SNOOZE_MS) {
+      this.setSetting(DAILY_REVIEW_KEY, today)
+      return this.listCandidates()
+    }
+
+    let name = suggestedName(items)
+    let summary = `上一次工作中，你连续使用了这 ${items.length} 项内容。`
+    if (this.reviewer) {
+      try {
+        const reviewedCandidate = await this.reviewer({ items, occurrences: matching.length, distinctDays: days.size, lastAt })
+        if (reviewedCandidate?.name?.trim()) name = reviewedCandidate.name.trim().slice(0, 40)
+        if (reviewedCandidate?.summary?.trim()) summary = reviewedCandidate.summary.trim().slice(0, 160)
+      } catch (error) {
+        console.warn('[scenario] Hermes review failed; keeping local candidate:', String(error))
+      }
+    }
+
+    const confidence = Math.min(98, 50 + Math.min(20, matching.length * 8) + Math.min(18, days.size * 6) + 10)
+    const evidence = `近 30 天出现 ${matching.length} 次，跨 ${days.size} 天；最近一次为 ${new Date(lastAt).toLocaleString('zh-CN')}。`
+    const id = existing?.id ?? randomUUID()
+    this.db.prepare(
+      `INSERT INTO scenario_candidates (id, source_key, name, summary, evidence, items_json, confidence, occurrences, last_at, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))
+       ON CONFLICT(source_key) DO UPDATE SET name = excluded.name, summary = excluded.summary, evidence = excluded.evidence,
+         items_json = excluded.items_json, confidence = excluded.confidence, occurrences = excluded.occurrences,
+         last_at = excluded.last_at, status = 'pending', updated_at = datetime('now')`
+    ).run(id, sourceKey, name, summary, evidence, JSON.stringify(items), confidence, matching.length, lastAt)
+    this.setSetting(DAILY_REVIEW_KEY, today)
+    return this.listCandidates()
+  }
+
+  acceptCandidate(id: string): ScenarioPreset {
+    const row = this.db.prepare(`SELECT * FROM scenario_candidates WHERE id = ? AND status = 'pending'`).get(id) as CandidateRow | undefined
+    if (!row) throw new Error('场景建议不存在或已处理')
+    const candidate = deserializeCandidate(row)
+    const created = this.create({ name: candidate.name, description: candidate.summary, items: candidate.items })
+    this.db.prepare(`UPDATE scenario_candidates SET status = 'saved', updated_at = datetime('now') WHERE id = ?`).run(id)
+    return created
+  }
+
+  dismissCandidate(id: string, permanent = false): void {
+    this.db.prepare(`UPDATE scenario_candidates SET status = ?, updated_at = datetime('now') WHERE id = ?`)
+      .run(permanent ? 'blocked' : 'dismissed', id)
+  }
+
+  private setting(key: string): string | null {
+    return (this.db.prepare(`SELECT value FROM settings WHERE key = ?`).get(key) as { value: string } | undefined)?.value ?? null
+  }
+
+  private setSetting(key: string, value: string): void {
+    this.db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(key, value)
   }
 
   list(): ScenarioPreset[] {
@@ -342,5 +487,26 @@ function deserialize(row: PresetRow): ScenarioPreset {
     auto: row.auto,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  }
+}
+
+function deserializeCandidate(row: CandidateRow): ScenarioCandidate {
+  let items: SceneItem[] = []
+  try {
+    items = JSON.parse(row.items_json) as SceneItem[]
+  } catch {
+    items = []
+  }
+  return {
+    id: row.id,
+    name: row.name,
+    summary: row.summary,
+    evidence: row.evidence,
+    items,
+    confidence: row.confidence,
+    occurrences: row.occurrences,
+    lastAt: row.last_at,
+    status: row.status,
+    createdAt: row.created_at
   }
 }

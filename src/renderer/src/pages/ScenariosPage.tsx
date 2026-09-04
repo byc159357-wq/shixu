@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Trash, Play, FloppyDisk, Sparkle, Plus, X, Images, FolderOpen, Lightning } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
 import { Badge, Button, EmptyState } from '../components/ui'
-import type { ScenarioPreset, ScenarioSuggestion, SceneItem } from '../../../shared/types'
+import type { ScenarioCandidate, ScenarioPreset, ScenarioSuggestion, SceneItem } from '../../../shared/types'
 
 /** Infer a lightweight SceneItem.kind for open_log records from a picked path. */
 function kindOfPath(p: string, isFolder: boolean): string {
@@ -30,6 +30,7 @@ const KIND_LABEL: Record<string, string> = {
 export function ScenariosPage() {
   const pushToast = useAppStore((s) => s.pushToast)
   const [presets, setPresets] = useState<ScenarioPreset[]>([])
+  const [candidates, setCandidates] = useState<ScenarioCandidate[]>([])
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [aiBusy, setAiBusy] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<ScenarioSuggestion[] | null>(null)
@@ -38,13 +39,29 @@ export function ScenariosPage() {
   const [newName, setNewName] = useState('')
 
   const refresh = async () => {
-    const list = await window.workdeck.scenario.list()
+    const [list, candidateList] = await Promise.all([
+      window.workdeck.scenario.list(),
+      window.workdeck.scenario.candidates()
+    ])
     setPresets(list)
+    setCandidates(candidateList)
     setDraft((d) => {
       const nd: Record<string, string> = {}
       for (const p of list) nd[p.id] = d[p.id] ?? p.name
       return nd
     })
+  }
+
+  const acceptCandidate = async (candidate: ScenarioCandidate) => {
+    await window.workdeck.scenario.acceptCandidate(candidate.id)
+    pushToast('success', `已保存场景「${candidate.name}」`)
+    await refresh()
+  }
+
+  const dismissCandidate = async (candidate: ScenarioCandidate, permanent = false) => {
+    await window.workdeck.scenario.dismissCandidate(candidate.id, permanent)
+    pushToast('info', permanent ? '不会再推荐这类组合' : '已忽略，30 天内不会再次推荐')
+    await refresh()
   }
 
   useEffect(() => {
@@ -153,6 +170,45 @@ export function ScenariosPage() {
   return (
     <main className="workspace">
       <div className="sub">管理已保存的「场景预设」· 新建 / AI 命名 / 增删成员 / 一键整套打开</div>
+
+      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+        <div className="card-head">
+          <div>
+            <h3>AI 场景建议</h3>
+            <div className="file-meta">每天首次打开拾序时，Hermes 只复盘上一次稳定工作习惯；不会自动保存或打开任何内容。</div>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => void window.workdeck.scenario.reviewDaily().then(refresh)}>
+            <Sparkle size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+            检查建议
+          </Button>
+        </div>
+        {candidates.length === 0 ? (
+          <div className="file-meta">暂无待确认建议。稳定组合至少跨 2 天重复出现后，才会显示在这里。</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            {candidates.map((candidate) => (
+              <div key={candidate.id} className="file-row" style={{ alignItems: 'flex-start', minHeight: 0 }}>
+                <span className="file-main">
+                  <div className="file-name" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {candidate.name}
+                    <span className="badge badge-available">可信度 {candidate.confidence}%</span>
+                  </div>
+                  <div className="file-meta" style={{ marginTop: 4 }}>{candidate.summary}</div>
+                  <div className="file-meta" style={{ marginTop: 3 }}>{candidate.evidence}</div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                    {candidate.items.map((item) => <span key={item.path} className="badge badge-neutral" title={item.path}>{item.name}</span>)}
+                  </div>
+                </span>
+                <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <Button size="sm" variant="primary" onClick={() => void acceptCandidate(candidate)}>保存为场景</Button>
+                  <Button size="sm" variant="secondary" onClick={() => void dismissCandidate(candidate)}>忽略</Button>
+                  <Button size="sm" variant="secondary" onClick={() => void dismissCandidate(candidate, true)}>不再推荐</Button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 沉淀 & 新建：从使用习惯学习成组模式，或手空白建一个场景 */}
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
