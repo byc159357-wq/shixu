@@ -142,7 +142,9 @@ export const EVENTS = {
   FILE_CHANGED: 'file:changed',
   UPDATE_STATUS: 'update:status',
   CLIPBOARD_CHANGED: 'clipboard:changed',
-  HERMES_EVENT: 'hermes:event'
+  HERMES_EVENT: 'hermes:event',
+  /** Sent after a resident window is made visible again. */
+  WINDOW_SHOWN: 'window:shown'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
