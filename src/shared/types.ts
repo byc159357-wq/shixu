@@ -712,8 +712,6 @@ export interface WorkdeckApi {
   onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void
   onFilesChanged: (cb: () => void) => () => void
   onClipboardChanged: (cb: (entry: string) => void) => () => void
-  /** Fires when the resident desktop window is restored from the system tray. */
-  onWindowShown: (cb: () => void) => () => void
   agent: {
     /** List connectable external AI software for the agent hub switcher. */
     listProviders: () => Promise<AgentProviderInfo[]>

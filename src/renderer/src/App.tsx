@@ -542,12 +542,6 @@ export default function App() {
   const reducedMotion = useReducedMotion()
   useMotionLevel()
 
-  // The app lives in the tray after its window is closed. Re-mount the
-  // startup layer whenever that existing window becomes visible again.
-  useEffect(() => {
-    return window.workdeck.onWindowShown(() => setShowStartup(true))
-  }, [])
-
   // Theme on <body> (dark/light token switching)
   useEffect(() => {
     document.body.dataset.theme = theme

@@ -196,13 +196,6 @@ const api: WorkdeckApi = {
       ipcRenderer.removeListener(EVENTS.CLIPBOARD_CHANGED, listener)
     }
   },
-  onWindowShown: (cb) => {
-    const listener = () => cb()
-    ipcRenderer.on(EVENTS.WINDOW_SHOWN, listener)
-    return () => {
-      ipcRenderer.removeListener(EVENTS.WINDOW_SHOWN, listener)
-    }
-  },
   agent: {
     listProviders: () => ipcRenderer.invoke(IPC.AGENT_LIST_PROVIDERS),
     modelList: (opts) => ipcRenderer.invoke(IPC.AGENT_MODEL_LIST, opts ?? {}),

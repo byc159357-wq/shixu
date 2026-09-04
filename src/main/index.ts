@@ -7,7 +7,6 @@ import { SettingsService } from './services/settings.service'
 import { BackupService } from './services/backup.service'
 import { isSmokeRun } from './lib/smoke'
 import { resolveUserDataDirectory } from './services/user-data-migration'
-import { EVENTS } from './ipc/channels'
 
 let mainWindow: BrowserWindow | null = null
 let db: Db | null = null
@@ -70,12 +69,6 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => mainWindow?.show())
-  // Closing keeps the renderer resident in the tray. Signal it whenever the
-  // window is restored so the opening transition is not skipped on re-open.
-  mainWindow.on('show', () => {
-    const window = mainWindow
-    if (window && !window.isDestroyed()) window.webContents.send(EVENTS.WINDOW_SHOWN)
-  })
   mainWindow.on('closed', () => {
     mainWindow = null
   })
