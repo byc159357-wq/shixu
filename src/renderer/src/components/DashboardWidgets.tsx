@@ -204,6 +204,7 @@ export function InboxWidget() {
   const emailInbox = useAppStore((s) => s.emailInbox)
   const loadEmailInbox = useAppStore((s) => s.loadEmailInbox)
   const selectEmail = useAppStore((s) => s.selectEmail)
+  const emailLoading = useAppStore((s) => s.emailLoading)
   const setModule = useAppStore((s) => s.setModule)
   const [reading, setReading] = useState<{ m: MailPreview; result: MailDetailResult | null } | null>(null)
   // Guards against a late-arriving email fetch re-opening the modal after the
@@ -281,7 +282,11 @@ export function InboxWidget() {
         </span>
       </div>
 
-      {emailInbox?.error ? (
+      {emailLoading ? (
+        <div className="file-meta" style={{ padding: '0.25rem 0' }}>
+          正在加载收件箱…
+        </div>
+      ) : emailInbox?.error ? (
         <div className="file-meta" style={{ color: 'var(--danger, #e55a5a)', padding: '0.25rem 0' }}>
           连接失败：{emailInbox.error}
         </div>
@@ -323,8 +328,8 @@ export function InboxWidget() {
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-        <button className="btn btn-secondary btn-sm" onClick={() => void loadEmailInbox()}>
-          刷新
+        <button className="btn btn-secondary btn-sm" onClick={() => void loadEmailInbox()} disabled={emailLoading}>
+          {emailLoading ? '加载中…' : '刷新'}
         </button>
         <button
           className="btn btn-secondary btn-sm"

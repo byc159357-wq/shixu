@@ -120,6 +120,7 @@ interface AppState {
   emailAccounts: EmailAccountInfo[]
   emailActiveId: string | null
   emailInbox: EmailInboxResult | null
+  emailLoading: boolean
   auditRows: AuditRow[]
   projectTasks: TaskWithFiles[]
   todayTasks: TodayTasks
@@ -236,6 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   emailAccounts: [],
   emailActiveId: null,
   emailInbox: null,
+  emailLoading: false,
   auditRows: [],
   projectTasks: [],
   todayTasks: { overdue: [], today: [] },
@@ -543,11 +545,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadEmailInbox: async () => {
+    set({ emailLoading: true })
     try {
       const emailInbox = await window.workdeck.email.inbox()
-      set({ emailInbox })
+      set({ emailInbox, emailLoading: false })
     } catch (err) {
-      set({ error: String(err) })
+      set({ error: String(err), emailLoading: false })
     }
   },
 
@@ -562,6 +565,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectEmail: async (id) => {
+    // Reflect the switch immediately. Waiting for the IMAP round-trip before
+    // the selector updated made switching look broken — the dropdown appeared
+    // to snap back because nothing changed until the fetch resolved.
+    set({ emailActiveId: id })
     try {
       await window.workdeck.email.select(id)
       await get().loadEmailInfo()

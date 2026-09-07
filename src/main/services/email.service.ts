@@ -276,10 +276,19 @@ export class EmailService {
         secure: a.secure !== false,
         enc: a.enc
       })
-      if (Array.isArray(v)) return v.filter((x) => x && x.email && x.host).map(norm)
-      // Legacy single-account object → migrate to a one-element list.
-      if (v && v.email && v.host) return [norm(v)]
-      return []
+      const raw: Array<Partial<StoredEmailConfig>> = Array.isArray(v)
+        ? v.filter((x) => x && x.email && x.host)
+        : v && v.email && v.host
+          ? [v]
+          : []
+      if (raw.length === 0) return []
+      const list = raw.map(norm)
+      // Accounts saved before ids existed (including the legacy single-account
+      // object) get a fresh random id on every read, so `select(id)` can never
+      // match the id the UI just sent and switching silently does nothing.
+      // Persist the generated ids once so they stay stable across reads.
+      if (raw.some((a) => !a.id)) this.writeAccounts(list)
+      return list
     } catch {
       return []
     }
