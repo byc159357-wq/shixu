@@ -26,10 +26,9 @@ export function RouteTransition({ route, reducedMotion }: RouteTransitionProps) 
 
       const timeline = gsap.timeline({ defaults: { overwrite: 'auto' } })
       timeline
-        .set(curtain, { autoAlpha: 1, xPercent: -112 })
-        .to(curtain, { xPercent: 0, duration: 0.2, ease: 'power3.in' })
-        .to(curtain, { xPercent: 112, duration: 0.32, ease: 'power3.out' }, '+=0.02')
-        .set(curtain, { autoAlpha: 0 })
+        .set(curtain, { autoAlpha: 0, xPercent: 0 })
+        .to(curtain, { autoAlpha: 1, duration: 0.07, ease: 'power1.in' })
+        .to(curtain, { autoAlpha: 0, duration: 0.13, ease: 'power1.out' })
 
       return () => timeline.kill()
     },

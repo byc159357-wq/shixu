@@ -36,19 +36,21 @@ export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntr
         onComplete
       })
 
+      // Pure cross-fade: no rotation, no scaling, no progress sweep. Opacity
+      // alone never resamples the backdrop, so the intro costs almost nothing
+      // and reads as a brief brand breath (~0.5s) instead of a performance.
       timeline
         .set(app, { autoAlpha: 0 })
         .addLabel('reveal', 0)
-        .fromTo('[data-startup-mark]', { autoAlpha: 0, scale: 0.62, y: 18 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.56, ease: 'back.out(1.35)' }, 'reveal')
-        .fromTo('[data-startup-ring="outer"]', { autoAlpha: 0, scale: 0.42, rotation: -90 }, { autoAlpha: 0.76, scale: 1, rotation: 0, duration: 0.68 }, 'reveal+=0.06')
-        .fromTo('[data-startup-ring="inner"]', { autoAlpha: 0, scale: 0.5, rotation: 120 }, { autoAlpha: 0.48, scale: 1, rotation: 0, duration: 0.6 }, 'reveal+=0.14')
-        .fromTo('[data-startup-wordmark]', { autoAlpha: 0, y: 18, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.42 }, 'reveal+=0.32')
-        .fromTo('[data-startup-caption]', { autoAlpha: 0, y: 8 }, { autoAlpha: 0.78, y: 0, duration: 0.28 }, 'reveal+=0.48')
-        .fromTo('[data-startup-progress]', { scaleX: 0 }, { scaleX: 1, duration: 0.56, ease: 'power2.inOut' }, 'reveal+=0.56')
-        .addLabel('handoff', '+=0.18')
-        .to('[data-startup-stage]', { autoAlpha: 0, scale: 0.95, duration: 0.25, ease: 'power2.in' }, 'handoff')
-        .to(app, { autoAlpha: 1, duration: 0.42, ease: 'power2.out' }, 'handoff')
-        .to(overlay, { autoAlpha: 0, duration: 0.34, ease: 'power2.in' }, 'handoff+=0.08')
+        .fromTo('[data-startup-mark]', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.24 }, 'reveal')
+        .fromTo('[data-startup-ring="outer"]', { autoAlpha: 0 }, { autoAlpha: 0.7, duration: 0.28 }, 'reveal+=0.04')
+        .fromTo('[data-startup-ring="inner"]', { autoAlpha: 0 }, { autoAlpha: 0.44, duration: 0.24 }, 'reveal+=0.08')
+        .fromTo('[data-startup-wordmark]', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.2 }, 'reveal+=0.1')
+        .fromTo('[data-startup-caption]', { autoAlpha: 0 }, { autoAlpha: 0.78, duration: 0.18 }, 'reveal+=0.16')
+        .addLabel('handoff', '+=0.06')
+        .to('[data-startup-stage]', { autoAlpha: 0, duration: 0.16, ease: 'power1.in' }, 'handoff')
+        .to(app, { autoAlpha: 1, duration: 0.2, ease: 'power1.out' }, 'handoff')
+        .to(overlay, { autoAlpha: 0, duration: 0.18, ease: 'power1.in' }, 'handoff')
 
       return () => timeline.kill()
     },
