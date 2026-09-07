@@ -115,21 +115,13 @@ html {
   pointer-events: none;
   visibility: hidden;
   background: var(--surface-1);
-  border-inline-end: 3px solid var(--accent);
-  box-shadow: 14px 0 34px color-mix(in srgb, var(--accent) 16%, transparent);
   will-change: transform, opacity;
 }
 
-/* Dashboard cards have room for a clear but polite lift. It is applied to the
-   positioned shell rather than the card surface, keeping the resize/drag math
-   and the card's own visual treatments independent. */
-.dashboard-card-shell:hover:not(:has(.lg-card-locked)) {
-  transform: translateY(-4px);
-}
-
-.dashboard-card-shell:active:not(:has(.lg-card-locked)) {
-  transform: translateY(-1px);
-}
+/* Dashboard cards stay transform-free on hover: per-card transforms force the
+   frosted-glass surface to resample every frame, which is the main reason the
+   home grid feels heavy. Hover affordance is left to the card's own border and
+   shadow treatments. */
 
 /* Dragging is the one interaction that can update every display frame. The
    blurred glass material is visually static while a card is in motion, but it
@@ -140,21 +132,10 @@ body.is-interacting .lg-card {
   backdrop-filter: none !important;
   transition: none !important;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .dashboard-card-shell:hover,
-  .dashboard-card-shell:active {
-    transform: none;
-  }
-}
-/* Interactive surfaces that animate on hover/active are GPU-composited.
-   translateZ(0) is the cheapest cross-browser hint; will-change is added
-   only on broad shells that actually animate layout-affecting props. */
-button, a, [role="button"], .btn, .card, .chip, .ai-skill, .ai-sess, .app-tile,
-.widget, .dock-item, .palette-item, .select-trigger, .ai-skill-menu-head {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
+/* No blanket translateZ(0) here: force-promoting every button, link and widget
+   creates dozens of compositor layers (layer explosion), each one costing
+   memory and a repaint on state change. Chromium promotes actively animating
+   elements on its own; blanket hints only hurt frame rate. */
 /* Scroll containers: momentum scrolling on WebKit, content-box containment
    to limit repaints inside panels. */
 .ai-scroll, .ai-list, .ai-skills, .page-body, .ctx-body, .modal-body,
@@ -178,7 +159,8 @@ button, a, [role="button"], .btn, .card, .chip, .ai-skill, .ai-sess, .app-tile,
     'sidebar workspace context';
   height: 100vh;
   transition: grid-template-columns var(--dur-med) var(--ease-out);
-  will-change: grid-template-columns;
+  /* No will-change here: grid-template-columns is a layout property the
+     compositor can never accelerate, so will-change only burns a layer. */
   /* Reserve space for the floating dock so row-2 children never sit
      behind it. The titlebar uses a negative margin to break out of this
      padding and reach the true window left edge. */
