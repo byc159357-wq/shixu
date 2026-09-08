@@ -31,35 +31,66 @@ export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntr
         return
       }
 
-      const timeline = gsap.timeline({
-        defaults: { ease: 'power3.out' },
-        onComplete
-      })
+      let timeline: gsap.core.Timeline | null = null
+      let cancelled = false
 
-      // Establish every start state explicitly. This prevents a fast first
-      // paint from making the reveal appear to have already finished.
-      timeline
-        .set(app, { autoAlpha: 0 })
-        .set('[data-startup-stage]', { autoAlpha: 1, scale: 0.82, y: 24 })
-        .set('[data-startup-mark]', { autoAlpha: 0, scale: 0.72, y: 16 })
-        .set('[data-startup-ring="outer"]', { autoAlpha: 0, scale: 0.42, rotation: -70 })
-        .set('[data-startup-ring="inner"]', { autoAlpha: 0, scale: 0.5, rotation: 90 })
-        .set('[data-startup-wordmark]', { autoAlpha: 0, y: 24 })
-        .set('[data-startup-caption]', { autoAlpha: 0, y: 10 })
-        .set('[data-startup-progress]', { scaleX: 0 })
-        .addLabel('reveal', 0)
-        .to('[data-startup-mark]', { autoAlpha: 1, scale: 1, y: 0, duration: 0.68, ease: 'back.out(1.4)' }, 'reveal')
-        .to('[data-startup-ring="outer"]', { autoAlpha: 0.82, scale: 1.08, rotation: 120, duration: 1.08, ease: 'power3.out' }, 'reveal+=0.08')
-        .to('[data-startup-ring="inner"]', { autoAlpha: 0.5, scale: 1, rotation: -90, duration: 0.84, ease: 'power2.out' }, 'reveal+=0.18')
-        .to('[data-startup-wordmark]', { autoAlpha: 1, y: 0, duration: 0.48, ease: 'power2.out' }, 'reveal+=0.56')
-        .to('[data-startup-caption]', { autoAlpha: 0.78, y: 0, duration: 0.36, ease: 'power2.out' }, 'reveal+=0.78')
-        .to('[data-startup-progress]', { scaleX: 1, duration: 0.86, ease: 'power2.inOut' }, 'reveal+=0.76')
-        .addLabel('handoff', '+=0.2')
-        .to('[data-startup-stage]', { autoAlpha: 0, y: -18, scale: 1.03, duration: 0.34, ease: 'power2.in' }, 'handoff')
-        .to(app, { autoAlpha: 1, duration: 0.5, ease: 'power2.out' }, 'handoff+=0.02')
-        .to(overlay, { autoAlpha: 0, duration: 0.42, ease: 'power2.in' }, 'handoff+=0.08')
+      // BrowserWindow is created hidden and only becomes visible at
+      // `ready-to-show`. Waiting here prevents the whole intro from playing
+      // behind an invisible native window, which made it look like nothing
+      // happened on cold launch.
+      const start = () => {
+        if (cancelled) return
+        timeline = gsap.timeline({
+          defaults: { ease: 'power3.out' },
+          onComplete
+        })
 
-      return () => timeline.kill()
+        // Establish every start state explicitly. This prevents a fast first
+        // paint from making the reveal appear to have already finished.
+        timeline
+          .set(app, { autoAlpha: 0 })
+          .set('[data-startup-stage]', { autoAlpha: 1, scale: 0.82, y: 24 })
+          .set('[data-startup-mark]', { autoAlpha: 0, scale: 0.72, y: 16 })
+          .set('[data-startup-ring="outer"]', { autoAlpha: 0, scale: 0.42, rotation: -70 })
+          .set('[data-startup-ring="inner"]', { autoAlpha: 0, scale: 0.5, rotation: 90 })
+          .set('[data-startup-wordmark]', { autoAlpha: 0, y: 24 })
+          .set('[data-startup-caption]', { autoAlpha: 0, y: 10 })
+          .set('[data-startup-scan]', { autoAlpha: 0, xPercent: -100 })
+          .set('[data-startup-progress]', { scaleX: 0 })
+          .addLabel('reveal', 0)
+          .to('[data-startup-mark]', { autoAlpha: 1, scale: 1, y: 0, duration: 0.68, ease: 'back.out(1.4)' }, 'reveal')
+          .to('[data-startup-ring="outer"]', { autoAlpha: 0.82, scale: 1.08, rotation: 120, duration: 1.08, ease: 'power3.out' }, 'reveal+=0.08')
+          .to('[data-startup-ring="inner"]', { autoAlpha: 0.5, scale: 1, rotation: -90, duration: 0.84, ease: 'power2.out' }, 'reveal+=0.18')
+          .to('[data-startup-wordmark]', { autoAlpha: 1, y: 0, duration: 0.48, ease: 'power2.out' }, 'reveal+=0.56')
+          .to('[data-startup-caption]', { autoAlpha: 0.78, y: 0, duration: 0.36, ease: 'power2.out' }, 'reveal+=0.78')
+          .to('[data-startup-scan]', { autoAlpha: 0.65, xPercent: 100, duration: 0.9, ease: 'power2.inOut' }, 'reveal+=0.46')
+          .to('[data-startup-progress]', { scaleX: 1, duration: 0.86, ease: 'power2.inOut' }, 'reveal+=0.76')
+          .addLabel('handoff', '+=0.2')
+          .to('[data-startup-stage]', { autoAlpha: 0, y: -18, scale: 1.03, duration: 0.34, ease: 'power2.in' }, 'handoff')
+          .to(app, { autoAlpha: 1, duration: 0.5, ease: 'power2.out' }, 'handoff+=0.02')
+          .to(overlay, { autoAlpha: 0, duration: 0.42, ease: 'power2.in' }, 'handoff+=0.08')
+      }
+
+      if (document.visibilityState === 'hidden') {
+        const onVisibilityChange = () => {
+          if (document.visibilityState === 'visible') {
+            document.removeEventListener('visibilitychange', onVisibilityChange)
+            start()
+          }
+        }
+        document.addEventListener('visibilitychange', onVisibilityChange)
+        return () => {
+          cancelled = true
+          document.removeEventListener('visibilitychange', onVisibilityChange)
+          timeline?.kill()
+        }
+      }
+
+      start()
+      return () => {
+        cancelled = true
+        timeline?.kill()
+      }
     },
     { scope: root, dependencies: [reducedMotion], revertOnUpdate: true }
   )
@@ -74,6 +105,7 @@ export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntr
         </div>
         <div className="startup-intro-wordmark" data-startup-wordmark>拾序</div>
         <div className="startup-intro-caption" data-startup-caption>整理此刻，续写下一步</div>
+        <span className="startup-intro-scan" data-startup-scan aria-hidden="true" />
         <div className="startup-intro-progress" aria-hidden="true">
           <span data-startup-progress />
         </div>
