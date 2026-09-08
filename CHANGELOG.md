@@ -205,7 +205,8 @@
 - SQLite 自动备份、手动备份、开机启动与系统托盘设置。
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
-[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.2.0...HEAD
+[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.4.0
 [0.2.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.2.0
 [0.1.5]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.5
 [0.1.4]: https://github.com/byc159357-wq/shixu/releases/tag/v0.1.4
