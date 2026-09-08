@@ -74,7 +74,7 @@ function createWindow(): void {
     // hidden. Signal the exact native handoff so StartupIntro starts on the
     // frame the user can actually see.
     void mainWindow?.webContents.executeJavaScript(
-      "window.dispatchEvent(new Event('workdeck:window-visible'))"
+      "window.__workdeckWindowVisible = true; window.dispatchEvent(new Event('workdeck:window-visible'))"
     )
   })
   mainWindow.on('closed', () => {

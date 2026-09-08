@@ -25,25 +25,40 @@ export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntr
       const app = appRoot.current
       if (!overlay) return
 
-      if (reducedMotion) {
-        gsap.set(app, { autoAlpha: 1 })
-        onComplete()
-        return
-      }
-
       let timeline: gsap.core.Timeline | null = null
       let cancelled = false
 
       // BrowserWindow is created hidden and only becomes visible at
-      // `ready-to-show`. Waiting here prevents the whole intro from playing
-      // behind an invisible native window, which made it look like nothing
-      // happened on cold launch.
+      // `ready-to-show`. In Electron, document.visibilityState is not
+      // guaranteed to change for a hidden BrowserWindow, so the renderer
+      // waits for the explicit native handoff event instead of guessing.
       const start = () => {
         if (cancelled) return
         timeline = gsap.timeline({
           defaults: { ease: 'power3.out' },
           onComplete
         })
+
+        if (reducedMotion) {
+          // Keep a perceivable but vestibular-safe handoff for users who
+          // prefer reduced motion: opacity only, no scale/rotation/translation.
+          timeline
+            .set(app, { autoAlpha: 0 })
+            .set('[data-startup-stage]', { autoAlpha: 1 })
+            .set('[data-startup-mark]', { autoAlpha: 0 })
+            .set('[data-startup-wordmark]', { autoAlpha: 0 })
+            .set('[data-startup-caption]', { autoAlpha: 0 })
+            .set('[data-startup-scan]', { autoAlpha: 0 })
+            .set('[data-startup-progress]', { scaleX: 0 })
+            .to('[data-startup-mark]', { autoAlpha: 1, duration: 0.4, ease: 'power1.out' })
+            .to('[data-startup-wordmark]', { autoAlpha: 1, duration: 0.32, ease: 'power1.out' }, '-=0.12')
+            .to('[data-startup-caption]', { autoAlpha: 0.78, duration: 0.28, ease: 'power1.out' }, '-=0.1')
+            .to('[data-startup-progress]', { scaleX: 1, duration: 0.52, ease: 'power1.inOut' }, '-=0.1')
+            .to('[data-startup-stage]', { autoAlpha: 0, duration: 0.26, ease: 'power1.in' }, '+=0.2')
+            .to(app, { autoAlpha: 1, duration: 0.32, ease: 'power1.out' }, '<')
+            .to(overlay, { autoAlpha: 0, duration: 0.24, ease: 'power1.in' }, '<0.04')
+          return
+        }
 
         // Establish every start state explicitly. This prevents a fast first
         // paint from making the reveal appear to have already finished.
@@ -71,17 +86,17 @@ export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntr
           .to(overlay, { autoAlpha: 0, duration: 0.42, ease: 'power2.in' }, 'handoff+=0.08')
       }
 
-      if (document.visibilityState === 'hidden') {
+      const isElectronWindow = typeof window.workdeck !== 'undefined'
+      if (isElectronWindow) {
+        const windowState = window as Window & { __workdeckWindowVisible?: boolean }
         const onVisible = () => {
-          document.removeEventListener('visibilitychange', onVisible)
           window.removeEventListener('workdeck:window-visible', onVisible)
           start()
         }
-        document.addEventListener('visibilitychange', onVisible)
         window.addEventListener('workdeck:window-visible', onVisible)
+        if (windowState.__workdeckWindowVisible) onVisible()
         return () => {
           cancelled = true
-          document.removeEventListener('visibilitychange', onVisible)
           window.removeEventListener('workdeck:window-visible', onVisible)
           timeline?.kill()
         }
