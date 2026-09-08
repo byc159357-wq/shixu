@@ -1,9 +1,17 @@
 !macro preInit
-  ; Keep the default installation directory aligned with the product name.
+  ; Seed the default directory only for a first install. electron-builder
+  ; reads InstallLocation after preInit and uses it as the upgrade directory;
+  ; never overwrite that value or an update would jump back to the default.
   SetRegView 64
-  WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$LOCALAPPDATA\Programs\拾序"
+  ReadRegStr $0 HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
+  ${If} $0 == ""
+    WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$LOCALAPPDATA\Programs\拾序"
+  ${EndIf}
   SetRegView 32
-  WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$LOCALAPPDATA\Programs\拾序"
+  ReadRegStr $0 HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
+  ${If} $0 == ""
+    WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "$LOCALAPPDATA\Programs\拾序"
+  ${EndIf}
 !macroend
 
 !macro customInstall
@@ -17,4 +25,3 @@
   Delete "$SMPROGRAMS\拾序\卸载拾序.lnk"
   RMDir "$SMPROGRAMS\拾序"
 !macroend
-

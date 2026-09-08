@@ -16,7 +16,7 @@
 
 拾序是一款面向 Windows 的本地优先个人工作台。它不会强迫你重新整理所有资料，而是在现有文件夹之上建立索引，把项目、文件、任务、笔记、日历和 AI 助手连接起来。
 
-当前版本为 **v0.4.0**。拾序正在从工具管理软件升级为以 Today、Project Space、Scene 和 Hermes 为核心的个人工作操作系统。
+当前版本为 **v0.4.1**。拾序正在从工具管理软件升级为以 Today、Project Space、Scene 和 Hermes 为核心的个人工作操作系统。
 
 ## 主要能力
 
@@ -120,7 +120,7 @@ scripts/                 集成与冒烟检查脚本
 
 ## 版本与计划
 
-- 当前版本：[v0.4.0](https://github.com/byc159357-wq/shixu/releases/tag/v0.4.0)
+- 当前版本：[v0.4.1](https://github.com/byc159357-wq/shixu/releases/tag/v0.4.1)
 - 版本记录：[CHANGELOG.md](CHANGELOG.md)
 - 集成路线图：[workdeck-integration-roadmap](workdeck-integration-roadmap/workdeck-integration-roadmap.html)
 
