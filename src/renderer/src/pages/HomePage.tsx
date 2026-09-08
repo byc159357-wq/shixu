@@ -1,17 +1,110 @@
 import { forwardRef, useCallback, useEffect, useRef, useState, type HTMLAttributes } from 'react'
 import type * as React from 'react'
-import { Plus, X, CaretRight, CaretLeft, MagnifyingGlass, TrendUp } from '@phosphor-icons/react'
+import { Plus, X, CaretRight, CaretLeft, MagnifyingGlass, TrendUp, ArrowUpRight, FolderOpen, Play, Clock, CheckCircle, Sparkle } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
-import type { HomeLayout, LayoutItem, WidgetKind, HabitItem, HabitSuggestResult } from '../../../shared/types'
+import type { HomeLayout, LayoutItem, WidgetKind, HabitItem, HabitSuggestResult, ScenarioPreset } from '../../../shared/types'
 import { findFreePosition, newId, resolveOverlaps } from '../lib/grid-layout'
 import { clampCols } from '../hooks/useGridDragResize'
 import { DashboardCanvas } from '../components/DashboardCanvas'
-import { WIDGETS, WIDGET_PICKER } from '../components/DashboardWidgets'
+import { WIDGETS, WIDGET_PICKER, ContinueWidget, TodayWidget } from '../components/DashboardWidgets'
 import { ConfirmModal } from '../components/ui'
 
 const ROWS = 64
 
 const HABIT_KIND: Record<string, string> = { apps: '软件', images: '图片', docs: '文件', folders: '文件夹', videos: '视频', file: '文件' }
+
+function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
+  const projects = useAppStore((s) => s.projects)
+  const currentProjectId = useAppStore((s) => s.currentProjectId)
+  const libraryFiles = useAppStore((s) => s.libraryFiles)
+  const setModule = useAppStore((s) => s.setModule)
+  const selectProject = useAppStore((s) => s.selectProject)
+  const pushToast = useAppStore((s) => s.pushToast)
+  const [scenes, setScenes] = useState<ScenarioPreset[]>([])
+  const [habit, setHabit] = useState<HabitSuggestResult | null>(null)
+  const currentProject = projects.find((p) => p.id === currentProjectId) ?? projects[0]
+
+  useEffect(() => {
+    let alive = true
+    void Promise.all([
+      window.workdeck.scenario.list(),
+      window.workdeck.ai.habit()
+    ]).then(([nextScenes, nextHabit]) => {
+      if (!alive) return
+      setScenes((nextScenes as ScenarioPreset[]).slice(0, 4))
+      setHabit(nextHabit as HabitSuggestResult)
+    }).catch(() => { /* empty state remains useful when services are offline */ })
+    return () => { alive = false }
+  }, [])
+
+  const recent = [...libraryFiles]
+    .sort((a, b) => new Date(b.lastOpenedAt ?? b.last_seen_at).getTime() - new Date(a.lastOpenedAt ?? a.last_seen_at).getTime())
+    .slice(0, 5)
+  const timeline = [
+    ...projects.slice(0, 3).map((project) => ({ id: `project-${project.id}`, label: project.name, detail: '项目更新', at: project.updated_at, icon: FolderOpen })),
+    ...recent.slice(0, 3).map((file) => ({ id: `file-${file.id}`, label: file.name, detail: '最近打开', at: file.lastOpenedAt ?? file.last_seen_at, icon: CheckCircle }))
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 5)
+
+  const runScene = async (scene: ScenarioPreset) => {
+    const result = await window.workdeck.scenario.apply(scene.id)
+    if (!result.ok) pushToast('error', `部分未打开：${result.errors.join('；')}`)
+    else pushToast('success', `已启动「${scene.name}」`)
+  }
+
+  return (
+    <main className="workspace today-workspace">
+      <header className="today-header">
+        <div>
+          <div className="today-kicker">TODAY · {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</div>
+          <h1>今天，继续向前</h1>
+          <p className="today-subtitle">把注意力留给正在发生的工作。</p>
+        </div>
+        <div className="today-header-actions">
+          <button className="btn btn-secondary btn-sm" onClick={onCustomLayout}>自定义布局</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setModule('calendar')}><Clock size={14} /> 打开计划</button>
+        </div>
+      </header>
+
+      <div className="today-grid">
+        <section className="today-panel today-current-project">
+          <div className="today-panel-head"><span>当前项目</span><button className="today-link" onClick={() => setModule('projects')}>全部项目 <ArrowUpRight size={14} /></button></div>
+          {currentProject ? (
+            <button className="today-project-card" onClick={() => void selectProject(currentProject.id)}>
+              <span className="today-project-dot" style={{ background: currentProject.color }} />
+              <span><strong>{currentProject.name}</strong><small>{currentProject.description || '继续处理这个项目里的下一件事'}</small></span>
+              <ArrowUpRight size={17} />
+            </button>
+          ) : <div className="today-empty">还没有项目，先建立一个工作空间。</div>}
+        </section>
+
+        <section className="today-panel today-task-panel">
+          <div className="today-panel-head"><span>今日进度</span><span className="today-count">待办与逾期</span></div>
+          <TodayWidget />
+        </section>
+
+        <section className="today-panel today-recent-panel">
+          <div className="today-panel-head"><span>最近工作</span><button className="today-link" onClick={() => setModule('library')}>打开文件库 <ArrowUpRight size={14} /></button></div>
+          <ContinueWidget />
+        </section>
+
+        <section className="today-panel today-scene-panel">
+          <div className="today-panel-head"><span>启动场景</span><button className="today-link" onClick={() => setModule('scenarios')}>管理场景 <ArrowUpRight size={14} /></button></div>
+          {scenes.length ? <div className="today-scene-list">{scenes.map((scene) => <button key={scene.id} className="today-scene-row" onClick={() => void runScene(scene)}><span className="today-scene-icon"><Play size={14} weight="fill" /></span><span><strong>{scene.name}</strong><small>{scene.items.length} 个项目 · {scene.auto ? 'AI 学习' : '手动保存'}</small></span><ArrowUpRight size={14} /></button>)}</div> : <div className="today-empty">保存常用组合后，可以一键启动工作模式。</div>}
+        </section>
+
+        <section className="today-panel today-timeline-panel">
+          <div className="today-panel-head"><span>Timeline</span><span className="today-count">最近活动</span></div>
+          {timeline.length ? <div className="today-timeline">{timeline.map((item) => { const Icon = item.icon; return <div className="today-timeline-row" key={item.id}><span className="today-timeline-line"><Icon size={14} /></span><span><strong>{item.label}</strong><small>{item.detail} · {new Date(item.at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}</small></span></div> })}</div> : <div className="today-empty">你的工作轨迹会显示在这里。</div>}
+        </section>
+
+        <section className="today-panel today-hermes-panel">
+          <div className="today-panel-head"><span><Sparkle size={15} /> Hermes 建议</span><span className="today-status-dot">在线</span></div>
+          {habit?.items?.length ? <><p className="today-hermes-copy">根据你最近的工作节奏，下一步可以继续：</p><div className="today-hermes-list">{habit.items.slice(0, 3).map((item) => <button key={item.path} className="today-hermes-row" onClick={() => void window.workdeck.ai.prepareOpen(item).then((err: string) => { if (err) pushToast('error', err) })}><span>{item.name}</span><ArrowUpRight size={14} /></button>)}</div></> : <p className="today-hermes-copy">今天还没有足够的上下文。继续工作后，Hermes 会在这里给出更具体的建议。</p>}
+        </section>
+      </div>
+    </main>
+  )
+}
 
 function defaultLayout(): LayoutItem[] {
   return [
@@ -30,6 +123,7 @@ export function HomePage() {
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<LayoutItem | null>(null)
+  const [customLayout, setCustomLayout] = useState(false)
   const [habit, setHabit] = useState<HabitSuggestResult | null>(null)
   const loadProjects = useAppStore((s) => s.loadProjects)
   const refresh = useAppStore((s) => s.refreshAfterFilesChange)
@@ -203,6 +297,8 @@ export function HomePage() {
     },
     [items, scheduleSave]
   )
+
+  if (!customLayout) return <TodayCenter onCustomLayout={() => setCustomLayout(true)} />
 
   return (
     <main className="workspace" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>

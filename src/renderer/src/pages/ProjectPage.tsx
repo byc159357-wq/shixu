@@ -9,7 +9,10 @@ import {
   CheckCircle,
   Circle,
   CalendarBlank,
-  List
+  List,
+  Sparkle,
+  Play,
+  ArrowUpRight
 } from '@phosphor-icons/react'
 import { useAppStore, type FileEntry, type Project, type ProjectTab } from '../store'
 import { Badge, Button, EmptyState, Modal } from '../components/ui'
@@ -72,10 +75,11 @@ export function ProjectPage() {
 function ProjectDetail({ project }: { project: Project }) {
   const tab = useAppStore((s) => s.projectTab)
   const setTab = useAppStore((s) => s.setProjectTab)
+  const setModule = useAppStore((s) => s.setModule)
   const openProjectSwitcher = useAppStore((s) => s.openProjectSwitcher)
 
   return (
-    <main className="workspace">
+    <main className="workspace project-space">
       <div className="page-head" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
         <Button
           size="sm"
@@ -96,13 +100,21 @@ function ProjectDetail({ project }: { project: Project }) {
         {project.deadline ? ` · 截止 ${project.deadline}` : ''}
       </div>
 
+      <div className="project-space-summary" aria-label="项目空间摘要">
+        <div><span>状态</span><strong>{projectStatusLabel(project.status)}</strong></div>
+        <div><span>开始于</span><strong>{project.created_at.slice(0, 10)}</strong></div>
+        <div><span>截止</span><strong>{project.deadline || '未设置'}</strong></div>
+        <button onClick={() => setModule('scenarios')}><Play size={14} /> 关联场景 <ArrowUpRight size={14} /></button>
+        <button onClick={() => window.dispatchEvent(new Event('workdeck:open-hermes'))}><Sparkle size={14} /> Hermes 助手 <ArrowUpRight size={14} /></button>
+      </div>
+
       <div className="tabs" role="tablist">
         {(
           [
-            ['overview', '概览'],
+            ['overview', '总览'],
             ['tasks', '任务'],
             ['files', '文件'],
-            ['notes', '笔记'],
+            ['notes', 'AI记录'],
             ['timeline', '时间线']
           ] as Array<[ProjectTab, string]>
         ).map(([t, label]) => (
@@ -711,7 +723,7 @@ function NotesTab({ project }: { project: Project }) {
     <div style={{ display: 'grid', gridTemplateColumns: '18rem 1fr', gap: 'var(--space-4)', alignItems: 'start' }}>
       <div className="card" style={{ margin: 0 }}>
         <div className="card-head">
-          <h3>笔记（{projectNotes.length}）</h3>
+          <h3>AI记录与笔记（{projectNotes.length}）</h3>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 'var(--space-3)' }}>
           {projectNotes.length === 0 && (

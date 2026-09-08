@@ -31,6 +31,7 @@ import { AIMessagesPage } from './pages/AIMessagesPage'
 import { AIArtifactsPage } from './pages/AIArtifactsPage'
 import { AITasksPage } from './pages/AITasksPage'
 import { ScenariosPage } from './pages/ScenariosPage'
+import { AIWidget } from './components/DashboardWidgets'
 
 /* ============ TitleBar ============ */
 function TitleBar() {
@@ -128,39 +129,6 @@ function CloseChoiceDialog({
   )
 }
 
-/* The active section's name lives at the true window corner — fixed, outside the
-   titlebar so the dock-reservation padding can't push it right. It doubles as the
-   global title for every page, so no section re-renders a duplicate <h1> in the
-   workspace and the content area stays larger. */
-const MODULE_NAME: Record<Module, string> = {
-  home: '主页',
-  projects: '项目',
-  library: '文件库',
-  calendar: '日历',
-  ai: 'AI',
-  aiMessages: 'AI 消息平台',
-  aiArtifacts: 'AI 产物',
-  aiTasks: 'AI 定时任务',
-  scenarios: '场景',
-  settings: '设置'
-}
-
-function SectionCorner() {
-  const module = useAppStore((s) => s.module)
-  return (
-    <div className="section-corner">
-      <div className="section-corner-brand">
-        <Logo size={40} />
-        <span>拾序</span>
-      </div>
-      <div className="section-corner-row">
-        <span className="section-corner-bar" />
-        <span className="section-corner-title">{MODULE_NAME[module]}</span>
-      </div>
-    </div>
-  )
-}
-
 /* ============ Dock ============ */
 /* Two visually separated groups:
      WORKSPACE — the six core work modules.
@@ -174,57 +142,50 @@ interface NavItem {
   label: string // micro label under the icon
 }
 
-const WORKSPACE_NAV: NavItem[] = [
-  { id: 'home', icon: <House size={21} />, title: '首页', label: '首页' },
-  { id: 'projects', icon: <FolderOpen size={21} />, title: '项目', label: '项目' },
-  { id: 'library', icon: <Images size={21} />, title: '文件库', label: '文件库' },
-  { id: 'calendar', icon: <CalendarDots size={21} />, title: '日历', label: '日历' },
-  { id: 'ai', icon: <Sparkle size={21} />, title: 'AI', label: 'AI' },
-  { id: 'scenarios', icon: <Play size={21} />, title: '场景', label: '场景' }
+const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
+  { id: 'today', label: 'Today', items: [{ id: 'home', icon: <House size={18} />, title: '今日工作台', label: '今日' }] },
+  {
+    id: 'workspace',
+    label: 'Workspace',
+    items: [
+      { id: 'projects', icon: <FolderOpen size={18} />, title: '项目空间', label: '项目' },
+      { id: 'library', icon: <Images size={18} />, title: '文件库', label: '文件库' }
+    ]
+  },
+  {
+    id: 'planning',
+    label: 'Planning',
+    items: [
+      { id: 'calendar', icon: <CalendarDots size={18} />, title: '日历与倒计时', label: '计划' },
+      { id: 'scenarios', icon: <Play size={18} />, title: '场景中心', label: '场景' }
+    ]
+  },
+  { id: 'intelligence', label: 'Intelligence', items: [{ id: 'ai', icon: <Sparkle size={18} />, title: '打开 Hermes 助手', label: 'Hermes' }] },
+  {
+    id: 'system',
+    label: 'System',
+    items: [
+      { id: 'search', icon: <MagnifyingGlass size={18} />, title: '全局搜索 (Ctrl+K)', label: '搜索' },
+      { id: 'settings', icon: <GearSix size={18} />, title: '设置', label: '设置' }
+    ]
+  }
 ]
 
-const SYSTEM_NAV: NavItem[] = [
-  { id: 'search', icon: <MagnifyingGlass size={21} />, title: '全局搜索 (Ctrl+K)', label: '搜索' },
-  { id: 'settings', icon: <GearSix size={21} />, title: '设置', label: '设置' }
-]
-
-function Dock() {
+function Dock({ onOpenHermes }: { onOpenHermes: () => void }) {
   const module = useAppStore((s) => s.module)
   const setModule = useAppStore((s) => s.setModule)
   const openPalette = useAppStore((s) => s.openPalette)
 
-  // Lock the dock to the Home page's card position and keep it there for every
-  // other module. The measurement runs only while module === 'home' (the default
-  // entry) and its value stays applied, so the nav rail never jumps screens.
-  useLayoutEffect(() => {
-    if (module !== 'home') return
-    let raf = 0
-    const measure = () => {
-      raf = requestAnimationFrame(() => {
-        const sub = document.querySelector<HTMLElement>('.workspace .sub')
-        if (!sub) return
-        const gap = parseFloat(getComputedStyle(sub).marginBottom) || 0
-        const bottom = sub.getBoundingClientRect().bottom
-        document.documentElement.style.setProperty('--dock-top-px', `${Math.round(bottom + gap)}px`)
-      })
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    const ro = new ResizeObserver(measure)
-    ro.observe(document.body)
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('resize', measure)
-      ro.disconnect()
-    }
-  }, [module])
-
   const renderItem = (n: NavItem) => (
     <button
       key={n.id}
-      className={`dock-item ${module === n.id ? 'active' : ''}`}
+      className={`dock-item sidebar-nav-item ${module === n.id ? 'active' : ''} ${n.id === 'ai' ? 'hermes-nav-item' : ''}`}
       title={n.title}
-      onClick={() => (n.id === 'search' ? openPalette() : setModule(n.id as Module))}
+      onClick={() => {
+        if (n.id === 'search') openPalette()
+        else if (n.id === 'ai') onOpenHermes()
+        else setModule(n.id as Module)
+      }}
     >
       {n.icon}
       <span className="dock-item-label">{n.label}</span>
@@ -232,13 +193,47 @@ function Dock() {
   )
 
   return (
-    <nav className="dock">
-      <span className="dock-group-cap">工作区</span>
-      {WORKSPACE_NAV.map(renderItem)}
-      <div className="dock-divider" />
-      <span className="dock-group-cap">系统</span>
-      {SYSTEM_NAV.map(renderItem)}
+    <nav className="dock sidebar-nav">
+      <div className="sidebar-brand" aria-label="拾序">
+        <Logo size={28} />
+        <div>
+          <strong>拾序</strong>
+          <span>SHIXU WORKSPACE</span>
+        </div>
+      </div>
+      <div className="sidebar-nav-scroll">
+        {NAV_GROUPS.map((group) => (
+          <div className="sidebar-nav-group" key={group.id}>
+            <div className="sidebar-nav-group-label">{group.label}</div>
+            {group.items.map(renderItem)}
+          </div>
+        ))}
+      </div>
+      <button className="sidebar-hermes-launch" onClick={onOpenHermes}>
+        <Sparkle size={16} weight="fill" />
+        <span>Ask Hermes</span>
+        <span className="sidebar-hermes-kbd">⌘K</span>
+      </button>
     </nav>
+  )
+}
+
+function HermesAssistant({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null
+  return (
+    <aside className="hermes-assistant" aria-label="Hermes AI 助手">
+      <div className="hermes-assistant-head">
+        <div>
+          <span className="hermes-assistant-eyebrow">INTELLIGENCE</span>
+          <h2>Hermes</h2>
+        </div>
+        <button className="icon-btn" onClick={onClose} aria-label="关闭 Hermes 助手">×</button>
+      </div>
+      <p className="hermes-assistant-note">理解当前工作上下文，给出下一步建议。</p>
+      <div className="hermes-assistant-body">
+        <AIWidget />
+      </div>
+    </aside>
   )
 }
 
@@ -599,6 +594,13 @@ export default function App() {
   const refreshAfterFilesChange = useAppStore((s) => s.refreshAfterFilesChange)
   const appShellRef = useRef<HTMLDivElement>(null)
   const [showStartup, setShowStartup] = useState(true)
+  const [hermesOpen, setHermesOpen] = useState(false)
+
+  useEffect(() => {
+    const openHermes = () => setHermesOpen(true)
+    window.addEventListener('workdeck:open-hermes', openHermes)
+    return () => window.removeEventListener('workdeck:open-hermes', openHermes)
+  }, [])
 
   // Motion preferences: OS-level reduced motion + low-power device detection.
   // Both write to body[data-*] so CSS can downgrade durations in one place.
@@ -679,13 +681,14 @@ export default function App() {
   }, [])
   const noContext = width < 1080
   const noSidebar = width < 800
-  // All modules are full-width: no sidebar / context-panel anywhere.
-  // DetailDrawer (popover) replaces the right-side context panel.
-  const FULL_WIDTH_MODULES = ['home', 'library', 'calendar', 'ai', 'aiMessages', 'aiArtifacts', 'aiTasks', 'projects', 'scenarios', 'settings'] as const
-  const isFullWidth = (FULL_WIDTH_MODULES as readonly string[]).includes(module)
+  // v0.4 keeps the navigation rail persistent so the workspace always has a
+  // stable spatial anchor. The old full-width mode is left in the class list
+  // for compatibility with any persisted shell styles, but is no longer used.
+  const isFullWidth = false
 
   const shellClass = [
     'app-shell',
+    'v04-shell',
     isFullWidth ? 'full-width-mode' : '',
     noContext ? 'no-context' : '',
     noSidebar ? 'no-sidebar' : ''
@@ -696,9 +699,8 @@ export default function App() {
   return (
     <>
       <div ref={appShellRef} className={shellClass}>
-        <SectionCorner />
         <TitleBar />
-        <Dock />
+        <Dock onOpenHermes={() => setHermesOpen(true)} />
         <ScenarioCompletionBanner />
         <Workspace />
         <DetailPopover />
@@ -706,6 +708,7 @@ export default function App() {
         <CommandPalette />
         <ContextMenuOverlay />
         <ToastStack />
+        <HermesAssistant open={hermesOpen} onClose={() => setHermesOpen(false)} />
       </div>
       {showStartup && (
         <StartupIntro

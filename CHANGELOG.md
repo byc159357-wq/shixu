@@ -4,6 +4,16 @@
 
 ## [未发布]
 
+## [0.4.0] - 2026-09-08
+
+### 重构
+
+- 重构桌面 Layout，左侧导航统一为 Today、Workspace、Planning、Intelligence、System 五个工作域。
+- 首页升级为 Today 工作状态中心，集中展示当前项目、最近工作、场景入口、Timeline 与 Hermes 建议。
+- 项目页升级为 Project Space，保留原有数据结构并整合文件、任务、时间、AI 记录与关联场景。
+- Hermes 改为全局侧边助手，可从导航和项目上下文打开，不再占用普通页面入口。
+- 建立统一的 Card、Button、Sidebar、Workspace、Timeline 与 AI Panel 视觉规范。
+
 ## [0.3.7] - 2026-09-08
 
 ### 修复
