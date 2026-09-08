@@ -7,6 +7,7 @@ gsap.registerPlugin(useGSAP)
 
 interface StartupIntroProps {
   appRoot: RefObject<HTMLElement | null>
+  theme: 'dark' | 'light' | 'hermes'
   reducedMotion: boolean
   onComplete: () => void
 }
@@ -16,7 +17,7 @@ interface StartupIntroProps {
  * The workspace is mounted behind the curtain and keeps loading, while the
  * launch layer remains long enough to be perceived as an intentional opening.
  */
-export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntroProps) {
+export function StartupIntro({ appRoot, theme, reducedMotion, onComplete }: StartupIntroProps) {
   const root = useRef<HTMLDivElement>(null)
 
   useGSAP(
@@ -127,7 +128,7 @@ export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntr
   )
 
   return (
-    <div ref={root} className="startup-intro" aria-hidden="true">
+    <div ref={root} className="startup-intro" data-theme={theme} aria-hidden="true">
       <div className="startup-intro-grid" data-startup-grid />
       <div className="startup-intro-vignette" />
       <div className="startup-intro-stage" data-startup-stage>

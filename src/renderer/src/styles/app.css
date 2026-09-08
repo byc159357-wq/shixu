@@ -172,7 +172,8 @@ html {
   z-index: 1;
 }
 
-body[data-theme='dark'] .startup-intro-mark > img { filter: invert(1) brightness(1.15); }
+body[data-theme='dark'] .startup-intro-mark > img,
+.startup-intro[data-theme='dark'] .startup-intro-mark > img { filter: invert(1) brightness(1.15); }
 
 .startup-intro-mark-status {
   position: absolute;
@@ -244,7 +245,8 @@ body[data-theme='dark'] .startup-intro-mark > img { filter: invert(1) brightness
 /* Launch palette follows the same theme the workspace is about to reveal.
    These overrides deliberately keep the animation's contrast ratios stable
    while letting Hermes carry its vivid blue brand into the opening moment. */
-body[data-theme='light'] .startup-intro {
+body[data-theme='light'] .startup-intro,
+.startup-intro[data-theme='light'] {
   --startup-bg: #f7f8fa;
   --startup-surface: #ffffff;
   --startup-raised: #f1f2f4;
@@ -263,7 +265,8 @@ body[data-theme='light'] .startup-intro {
   --startup-mark-shadow: 0 12px 24px rgba(20, 24, 32, 0.14), inset 0 1px 0 var(--startup-mark-highlight);
 }
 
-body[data-theme='hermes'] .startup-intro {
+body[data-theme='hermes'] .startup-intro,
+.startup-intro[data-theme='hermes'] {
   --startup-bg: var(--accent);
   --startup-surface: #ffffff;
   --startup-raised: #eef1ff;

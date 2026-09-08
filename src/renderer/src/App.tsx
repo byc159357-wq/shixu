@@ -710,6 +710,7 @@ export default function App() {
       {showStartup && (
         <StartupIntro
           appRoot={appShellRef}
+          theme={theme}
           reducedMotion={reducedMotion}
           onComplete={() => setShowStartup(false)}
         />
