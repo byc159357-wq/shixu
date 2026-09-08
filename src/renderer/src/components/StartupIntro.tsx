@@ -72,16 +72,17 @@ export function StartupIntro({ appRoot, reducedMotion, onComplete }: StartupIntr
       }
 
       if (document.visibilityState === 'hidden') {
-        const onVisibilityChange = () => {
-          if (document.visibilityState === 'visible') {
-            document.removeEventListener('visibilitychange', onVisibilityChange)
-            start()
-          }
+        const onVisible = () => {
+          document.removeEventListener('visibilitychange', onVisible)
+          window.removeEventListener('workdeck:window-visible', onVisible)
+          start()
         }
-        document.addEventListener('visibilitychange', onVisibilityChange)
+        document.addEventListener('visibilitychange', onVisible)
+        window.addEventListener('workdeck:window-visible', onVisible)
         return () => {
           cancelled = true
-          document.removeEventListener('visibilitychange', onVisibilityChange)
+          document.removeEventListener('visibilitychange', onVisible)
+          window.removeEventListener('workdeck:window-visible', onVisible)
           timeline?.kill()
         }
       }

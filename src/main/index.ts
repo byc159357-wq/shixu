@@ -68,7 +68,15 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  mainWindow.on('ready-to-show', () => {
+    mainWindow?.show()
+    // The renderer can finish its first paint while BrowserWindow is still
+    // hidden. Signal the exact native handoff so StartupIntro starts on the
+    // frame the user can actually see.
+    void mainWindow?.webContents.executeJavaScript(
+      "window.dispatchEvent(new Event('workdeck:window-visible'))"
+    )
+  })
   mainWindow.on('closed', () => {
     mainWindow = null
   })
