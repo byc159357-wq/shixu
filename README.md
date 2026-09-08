@@ -32,11 +32,22 @@
 
 从 [Releases](https://github.com/byc159357-wq/shixu/releases/latest) 下载最新版 Windows 安装包：
 
-请在 Releases 页面下载最新的 `拾序-Setup-<版本>.exe` 安装包。
+请在 Releases 页面下载最新的 `Shixu-Setup-<版本>.exe` 安装包。
 
 运行安装程序后，拾序将安装到 `%LOCALAPPDATA%\Programs\拾序`，并创建桌面和开始菜单快捷方式。安装目录内提供 `Uninstall 拾序.exe`，开始菜单中也有“卸载拾序”入口。目前仅提供 Windows x64 构建。
 
-> 仓库当前为私有仓库，下载源码或 Release 时需要登录具有访问权限的 GitHub 账号。
+仓库为公开仓库，安装包和源码均可直接下载。
+
+### 发布新版本
+
+版本发布由 GitHub Actions 自动完成。更新 `package.json` 中的版本号后提交并推送对应标签（例如 `v0.2.9`）：
+
+```bash
+git tag -a v0.2.9 -m "拾序 v0.2.9"
+git push origin v0.2.9
+```
+
+工作流会自动构建 Windows 安装包并创建 GitHub Release，同时上传安装包、`.blockmap` 和 `latest.yml`。已安装的拾序即可通过“设置 → 关于与更新 → 检查更新”发现新版本。
 
 ## 开始使用
 
