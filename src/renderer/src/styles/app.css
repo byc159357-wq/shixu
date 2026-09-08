@@ -13,6 +13,12 @@ html {
 /* The overlay never captures input. It gives the app a clear opening moment
    while the mounted workspace continues loading in the background. */
 .startup-intro {
+  --startup-bg: #14151a;
+  --startup-surface: #242529;
+  --startup-raised: #2b2d32;
+  --startup-text: #f4f5f6;
+  --startup-muted: #a4a7ad;
+  --startup-line: rgba(255, 255, 255, 0.14);
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -20,9 +26,30 @@ html {
   place-items: center;
   pointer-events: none;
   background:
-    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
-    var(--workspace-bg);
+    radial-gradient(700px 500px at 50% 46%, rgba(48, 164, 108, 0.12), transparent 72%),
+    var(--startup-bg);
   will-change: opacity;
+}
+
+.startup-intro-grid,
+.startup-intro-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.startup-intro-grid {
+  opacity: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at center, black 0%, transparent 74%);
+  will-change: opacity;
+}
+
+.startup-intro-vignette {
+  background: radial-gradient(ellipse at center, transparent 28%, rgba(0, 0, 0, 0.38) 100%);
 }
 
 .startup-intro-stage {
@@ -32,18 +59,72 @@ html {
   align-items: center;
   min-width: 17rem;
   opacity: 0;
+  z-index: 1;
   will-change: transform, opacity;
+}
+
+.startup-intro-panel {
+  position: relative;
+  width: min(25rem, calc(100vw - 3rem));
+  padding: 1.25rem 1.35rem 1.15rem;
+  overflow: hidden;
+  border: 1px solid var(--startup-line);
+  border-radius: 1.5rem;
+  background: var(--startup-surface);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  will-change: transform, opacity;
+}
+
+.startup-intro-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.065), transparent 36%);
+}
+
+.startup-intro-topline,
+.startup-intro-status,
+.startup-intro-identity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.startup-intro-topline {
+  justify-content: space-between;
+  padding-bottom: 1.15rem;
+  border-bottom: 1px solid var(--startup-line);
+}
+
+.startup-intro-kicker,
+.startup-intro-index,
+.startup-intro-status-value {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.startup-intro-kicker { color: var(--startup-text); }
+.startup-intro-index,
+.startup-intro-status-value { color: var(--startup-muted); opacity: 0.78; }
+
+.startup-intro-identity {
+  gap: 1rem;
+  padding: 1.55rem 0 1.45rem;
 }
 
 .startup-intro-scan {
   position: absolute;
-  top: 3.25rem;
-  left: -8rem;
-  width: calc(100% + 16rem);
+  top: 0;
+  left: -16rem;
+  width: calc(100% + 32rem);
   height: 1px;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 78%, white), transparent);
-  filter: drop-shadow(0 0 0.5rem color-mix(in srgb, var(--accent) 45%, transparent));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--success) 80%, var(--text-1)), transparent);
+  filter: drop-shadow(0 0 0.6rem color-mix(in srgb, var(--success) 45%, transparent));
   will-change: transform, opacity;
 }
 
@@ -51,14 +132,26 @@ html {
   position: relative;
   display: grid;
   place-items: center;
-  width: 7rem;
-  height: 7rem;
-  margin-bottom: 1.25rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 2rem;
-  background: var(--surface-1);
-  box-shadow: var(--shadow-card-hover);
+  flex: 0 0 auto;
+  width: 5.4rem;
+  height: 5.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1.35rem;
+  background: linear-gradient(145deg, var(--startup-raised), var(--startup-surface));
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   will-change: transform, opacity;
+}
+
+.startup-intro-mark::before {
+  content: '';
+  position: absolute;
+  top: 0.7rem;
+  left: 0.75rem;
+  width: 1.35rem;
+  height: 0.16rem;
+  border-radius: 999px;
+  background: var(--success);
+  opacity: 0.9;
 }
 
 .startup-intro-mark > img {
@@ -66,33 +159,28 @@ html {
   z-index: 1;
 }
 
-.startup-intro-ring {
+.startup-intro-mark > img {
+  filter: invert(1) brightness(1.15);
+}
+
+.startup-intro-mark-status {
   position: absolute;
-  pointer-events: none;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
+  right: 0.72rem;
+  bottom: 0.72rem;
+  width: 0.52rem;
+  height: 0.52rem;
+  border: 2px solid var(--startup-raised);
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--success) 16%, transparent);
   will-change: transform, opacity;
 }
 
-.startup-intro-ring-outer {
-  width: 8.4rem;
-  height: 8.4rem;
-  border-inline-start-color: transparent;
-  border-block-end-color: transparent;
-}
-
-.startup-intro-ring-inner {
-  width: 6.15rem;
-  height: 6.15rem;
-  border-inline-end-color: transparent;
-  border-block-start-color: transparent;
-}
-
 .startup-intro-wordmark {
-  font-size: 2.6rem;
+  font-size: 2.4rem;
   font-weight: 800;
-  letter-spacing: 0.2em;
-  color: var(--text-1);
+  letter-spacing: 0.12em;
+  color: var(--startup-text);
   will-change: transform, opacity;
 }
 
@@ -100,16 +188,37 @@ html {
   margin-top: 0.45rem;
   font-size: var(--fs-caption);
   letter-spacing: 0.05em;
-  color: var(--text-2);
+  color: var(--startup-muted);
   will-change: transform, opacity;
 }
 
+.startup-intro-copy { min-width: 0; }
+
+.startup-intro-status {
+  gap: 0.55rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--startup-line);
+  color: var(--startup-muted);
+  font-size: var(--fs-caption);
+}
+
+.startup-intro-status-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--success) 18%, transparent);
+}
+
+.startup-intro-status-value { margin-left: auto; }
+
 .startup-intro-progress {
-  width: 10rem;
-  height: 1px;
-  margin-top: 1.2rem;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 2px;
   overflow: hidden;
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .startup-intro-progress > span {
@@ -117,7 +226,7 @@ html {
   width: 100%;
   height: 100%;
   transform-origin: left center;
-  background: var(--accent);
+  background: var(--success);
   will-change: transform;
 }
 
