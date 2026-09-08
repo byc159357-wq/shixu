@@ -13,12 +13,25 @@ html {
 /* The overlay never captures input. It gives the app a clear opening moment
    while the mounted workspace continues loading in the background. */
 .startup-intro {
+  /* The launch curtain is intentionally self-contained, but its palette is
+     supplied by the active theme below. Keeping these dark fallbacks avoids a
+     flash before the persisted theme attribute is applied to <body>. */
   --startup-bg: #14151a;
   --startup-surface: #242529;
   --startup-raised: #2b2d32;
   --startup-text: #f4f5f6;
   --startup-muted: #a4a7ad;
   --startup-line: rgba(255, 255, 255, 0.14);
+  --startup-grid-line: rgba(255, 255, 255, 0.045);
+  --startup-vignette: rgba(0, 0, 0, 0.38);
+  --startup-highlight: rgba(255, 255, 255, 0.065);
+  --startup-mark-border: rgba(255, 255, 255, 0.2);
+  --startup-mark-highlight: rgba(255, 255, 255, 0.12);
+  --startup-track: rgba(255, 255, 255, 0.14);
+  --startup-progress: var(--success);
+  --startup-glow: rgba(48, 164, 108, 0.12);
+  --startup-shadow: 0 24px 64px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --startup-mark-shadow: 0 12px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 var(--startup-mark-highlight);
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -26,7 +39,7 @@ html {
   place-items: center;
   pointer-events: none;
   background:
-    radial-gradient(700px 500px at 50% 46%, rgba(48, 164, 108, 0.12), transparent 72%),
+    radial-gradient(700px 500px at 50% 46%, var(--startup-glow), transparent 72%),
     var(--startup-bg);
   will-change: opacity;
 }
@@ -41,15 +54,15 @@ html {
 .startup-intro-grid {
   opacity: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    linear-gradient(var(--startup-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--startup-grid-line) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: radial-gradient(ellipse at center, black 0%, transparent 74%);
   will-change: opacity;
 }
 
 .startup-intro-vignette {
-  background: radial-gradient(ellipse at center, transparent 28%, rgba(0, 0, 0, 0.38) 100%);
+  background: radial-gradient(ellipse at center, transparent 28%, var(--startup-vignette) 100%);
 }
 
 .startup-intro-stage {
@@ -71,7 +84,7 @@ html {
   border: 1px solid var(--startup-line);
   border-radius: 1.5rem;
   background: var(--startup-surface);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: var(--startup-shadow);
   will-change: transform, opacity;
 }
 
@@ -80,7 +93,7 @@ html {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.065), transparent 36%);
+  background: linear-gradient(135deg, var(--startup-highlight), transparent 36%);
 }
 
 .startup-intro-topline,
@@ -123,8 +136,8 @@ html {
   width: calc(100% + 32rem);
   height: 1px;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--success) 80%, var(--text-1)), transparent);
-  filter: drop-shadow(0 0 0.6rem color-mix(in srgb, var(--success) 45%, transparent));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--startup-progress) 80%, var(--startup-text)), transparent);
+  filter: drop-shadow(0 0 0.6rem color-mix(in srgb, var(--startup-progress) 45%, transparent));
   will-change: transform, opacity;
 }
 
@@ -135,10 +148,10 @@ html {
   flex: 0 0 auto;
   width: 5.4rem;
   height: 5.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--startup-mark-border);
   border-radius: 1.35rem;
   background: linear-gradient(145deg, var(--startup-raised), var(--startup-surface));
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: var(--startup-mark-shadow);
   will-change: transform, opacity;
 }
 
@@ -150,7 +163,7 @@ html {
   width: 1.35rem;
   height: 0.16rem;
   border-radius: 999px;
-  background: var(--success);
+  background: var(--startup-progress);
   opacity: 0.9;
 }
 
@@ -159,9 +172,7 @@ html {
   z-index: 1;
 }
 
-.startup-intro-mark > img {
-  filter: invert(1) brightness(1.15);
-}
+body[data-theme='dark'] .startup-intro-mark > img { filter: invert(1) brightness(1.15); }
 
 .startup-intro-mark-status {
   position: absolute;
@@ -218,7 +229,7 @@ html {
   width: 100%;
   height: 2px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--startup-track);
 }
 
 .startup-intro-progress > span {
@@ -226,8 +237,49 @@ html {
   width: 100%;
   height: 100%;
   transform-origin: left center;
-  background: var(--success);
+  background: var(--startup-progress);
   will-change: transform;
+}
+
+/* Launch palette follows the same theme the workspace is about to reveal.
+   These overrides deliberately keep the animation's contrast ratios stable
+   while letting Hermes carry its vivid blue brand into the opening moment. */
+body[data-theme='light'] .startup-intro {
+  --startup-bg: #f7f8fa;
+  --startup-surface: #ffffff;
+  --startup-raised: #f1f2f4;
+  --startup-text: #101114;
+  --startup-muted: #626873;
+  --startup-line: rgba(0, 0, 0, 0.14);
+  --startup-grid-line: rgba(0, 0, 0, 0.06);
+  --startup-vignette: rgba(0, 0, 0, 0.08);
+  --startup-highlight: rgba(255, 255, 255, 0.82);
+  --startup-mark-border: rgba(0, 0, 0, 0.16);
+  --startup-mark-highlight: rgba(255, 255, 255, 0.9);
+  --startup-track: rgba(0, 0, 0, 0.12);
+  --startup-progress: var(--success);
+  --startup-glow: color-mix(in srgb, var(--success) 10%, transparent);
+  --startup-shadow: 0 24px 64px rgba(20, 24, 32, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --startup-mark-shadow: 0 12px 24px rgba(20, 24, 32, 0.14), inset 0 1px 0 var(--startup-mark-highlight);
+}
+
+body[data-theme='hermes'] .startup-intro {
+  --startup-bg: var(--accent);
+  --startup-surface: #ffffff;
+  --startup-raised: #eef1ff;
+  --startup-text: #0b1030;
+  --startup-muted: #566080;
+  --startup-line: rgba(13, 17, 92, 0.2);
+  --startup-grid-line: rgba(255, 255, 255, 0.16);
+  --startup-vignette: rgba(8, 12, 90, 0.24);
+  --startup-highlight: rgba(255, 255, 255, 0.72);
+  --startup-mark-border: rgba(26, 40, 245, 0.22);
+  --startup-mark-highlight: rgba(255, 255, 255, 0.96);
+  --startup-track: rgba(26, 40, 245, 0.16);
+  --startup-progress: var(--accent);
+  --startup-glow: rgba(255, 255, 255, 0.2);
+  --startup-shadow: 0 24px 64px rgba(8, 12, 90, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --startup-mark-shadow: 0 12px 24px rgba(8, 12, 90, 0.2), inset 0 1px 0 var(--startup-mark-highlight);
 }
 
 /* ============ Workspace handoff ============ */
