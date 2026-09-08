@@ -33,7 +33,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and publish Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release:github
+      - name: Build installer and update metadata
+        run: npm run pack
+
+      - name: Upload Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist-shixu/Shixu-Setup-*.exe
+            dist-shixu/Shixu-Setup-*.exe.blockmap
+            dist-shixu/latest.yml
