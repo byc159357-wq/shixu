@@ -4,6 +4,14 @@
 
 ## [未发布]
 
+## [0.4.2] - 2026-09-08
+
+### 修复
+
+- 修复 Today 自定义布局在页面切换后恢复默认的问题。
+- 将布局数据和 `view / edit` 状态提升到 Zustand；布局通过 SQLite 持久化，重新打开软件仍可恢复。
+- 增加保存布局、恢复默认和完成编辑操作。
+
 ## [0.4.1] - 2026-09-08
 
 ### 修复
@@ -211,7 +219,8 @@
 - SQLite 自动备份、手动备份、开机启动与系统托盘设置。
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
-[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.4.1...HEAD
+[未发布]: https://github.com/byc159357-wq/shixu/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/byc159357-wq/shixu/releases/tag/v0.4.2
 [0.4.1]: https://github.com/byc159357-wq/shixu/releases/tag/v0.4.1
 [0.4.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.4.0
 [0.2.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.2.0

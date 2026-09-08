@@ -20,8 +20,11 @@ import type {
   EmailAccountInfo,
   EmailConfigInfo,
   EmailInboxResult,
-  EmailSaveInput
+  EmailSaveInput,
+  HomeLayout,
+  LayoutItem
 } from '../../shared/types'
+import { findFreePosition, newId, resolveOverlaps, type LayoutItem as GridLayoutItem } from './lib/grid-layout'
 
 export type { Project }
 export type FileEntry = FileWithProject
@@ -38,6 +41,7 @@ export type Module =
   | 'scenarios'
   | 'settings'
 export type ProjectTab = 'overview' | 'tasks' | 'files' | 'notes' | 'timeline'
+export type LayoutMode = 'view' | 'edit'
 
 export type DetailKind = 'project' | 'file' | 'note'
 
@@ -126,6 +130,9 @@ interface AppState {
   todayTasks: TodayTasks
   projectNotes: Note[]
   updateStatus: UpdateStatus
+  homeLayout: HomeLayout | null
+  homeLayoutMode: LayoutMode
+  homeLayoutLoaded: boolean
 
   setModule: (m: Module) => void
   setProjectTab: (t: ProjectTab) => void
@@ -167,6 +174,11 @@ interface AppState {
   checkForUpdates: () => Promise<void>
   downloadUpdate: () => Promise<void>
   installUpdate: () => Promise<void>
+  loadHomeLayout: (fallback: LayoutItem[]) => Promise<void>
+  setHomeLayoutMode: (mode: LayoutMode) => void
+  setHomeLayoutItems: (items: LayoutItem[]) => void
+  saveHomeLayout: () => Promise<void>
+  resetHomeLayout: (fallback: LayoutItem[]) => Promise<void>
   loadProjects: () => Promise<void>
   createProject: (name: string) => Promise<void>
   updateProject: (
@@ -203,6 +215,31 @@ interface AppState {
 }
 
 let toastId = 0
+let homeLayoutSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+const HOME_LAYOUT_ROWS = 64
+
+function normalizeHomeLayout(saved: HomeLayout | null, fallback: LayoutItem[]): { layout: HomeLayout; migrated: boolean } {
+  const source = saved?.items?.length ? saved.items : fallback
+  let migrated = !saved || saved.items.length === 0
+  let items = source.map((item) => {
+    if (item.kind !== 'ai' || (item.w >= 3 && item.h >= 3)) return item
+    migrated = true
+    return { ...item, w: Math.max(3, item.w), h: Math.max(3, item.h) }
+  })
+  if (!source.some((item) => item.kind === 'ai')) {
+    const extent = source.reduce((max, item) => Math.max(max, item.x + item.w), 12)
+    const position = findFreePosition(items as GridLayoutItem[], 3, 3, { cols: extent + 3, rows: HOME_LAYOUT_ROWS })
+    if (position) {
+      items = [...items, { id: newId(), kind: 'ai', x: position.x, y: position.y, w: 3, h: 3 }]
+      migrated = true
+    }
+  }
+  const extent = items.reduce((max, item) => Math.max(max, item.x + item.w), 0)
+  const resolved = resolveOverlaps(items as GridLayoutItem[], { cols: Math.max(12, extent), rows: HOME_LAYOUT_ROWS })
+  if (resolved.some((item, index) => item.x !== items[index]?.x || item.y !== items[index]?.y)) migrated = true
+  return { layout: { version: 1, items: resolved as LayoutItem[] }, migrated }
+}
 
 export const useAppStore = create<AppState>((set, get) => ({
   module: 'home',
@@ -243,6 +280,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   todayTasks: { overdue: [], today: [] },
   projectNotes: [],
   updateStatus: { state: 'idle' },
+  homeLayout: null,
+  homeLayoutMode: 'view',
+  homeLayoutLoaded: false,
 
   setModule: (module) => set({ module }),
   setProjectTab: (projectTab) => set({ projectTab }),
@@ -849,5 +889,50 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ updateStatus: { state: 'error', message: String(err) } })
     }
+  },
+
+  loadHomeLayout: async (fallback) => {
+    if (get().homeLayoutLoaded) return
+    try {
+      const saved = await window.workdeck.home.getLayout()
+      const { layout, migrated } = normalizeHomeLayout(saved, fallback)
+      set({ homeLayout: layout, homeLayoutLoaded: true })
+      if (migrated) await window.workdeck.home.saveLayout(layout)
+    } catch (err) {
+      // Keep Today usable if SQLite/IPC is temporarily unavailable; the next
+      // app launch can retry loading the persisted layout.
+      set({ homeLayout: { version: 1, items: fallback }, homeLayoutLoaded: true, error: String(err) })
+    }
+  },
+
+  setHomeLayoutMode: (homeLayoutMode) => set({ homeLayoutMode }),
+
+  setHomeLayoutItems: (items) => {
+    set({ homeLayout: { version: 1, items } })
+    if (homeLayoutSaveTimer) clearTimeout(homeLayoutSaveTimer)
+    homeLayoutSaveTimer = setTimeout(() => {
+      homeLayoutSaveTimer = null
+      void get().saveHomeLayout()
+    }, 450)
+  },
+
+  saveHomeLayout: async () => {
+    const layout = get().homeLayout
+    if (!layout) return
+    try {
+      await window.workdeck.home.saveLayout(layout)
+    } catch (err) {
+      set({ error: String(err) })
+    }
+  },
+
+  resetHomeLayout: async (fallback) => {
+    const { layout } = normalizeHomeLayout(null, fallback)
+    if (homeLayoutSaveTimer) {
+      clearTimeout(homeLayoutSaveTimer)
+      homeLayoutSaveTimer = null
+    }
+    set({ homeLayout: layout, homeLayoutLoaded: true })
+    await get().saveHomeLayout()
   }
 }))

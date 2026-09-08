@@ -1,9 +1,9 @@
-import { forwardRef, useCallback, useEffect, useRef, useState, type HTMLAttributes } from 'react'
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type HTMLAttributes } from 'react'
 import type * as React from 'react'
 import { Plus, X, CaretRight, CaretLeft, MagnifyingGlass, TrendUp, ArrowUpRight, FolderOpen, Play, Clock, CheckCircle, Sparkle } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
-import type { HomeLayout, LayoutItem, WidgetKind, HabitItem, HabitSuggestResult, ScenarioPreset } from '../../../shared/types'
-import { findFreePosition, newId, resolveOverlaps } from '../lib/grid-layout'
+import type { LayoutItem, WidgetKind, HabitItem, HabitSuggestResult, ScenarioPreset } from '../../../shared/types'
+import { findFreePosition, newId } from '../lib/grid-layout'
 import { clampCols } from '../hooks/useGridDragResize'
 import { DashboardCanvas } from '../components/DashboardCanvas'
 import { WIDGETS, WIDGET_PICKER, ContinueWidget, TodayWidget } from '../components/DashboardWidgets'
@@ -119,12 +119,20 @@ function defaultLayout(): LayoutItem[] {
 }
 
 export function HomePage() {
-  const [items, setItems] = useState<LayoutItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<LayoutItem | null>(null)
-  const [customLayout, setCustomLayout] = useState(false)
   const [habit, setHabit] = useState<HabitSuggestResult | null>(null)
+  const homeLayout = useAppStore((s) => s.homeLayout)
+  const homeLayoutMode = useAppStore((s) => s.homeLayoutMode)
+  const homeLayoutLoaded = useAppStore((s) => s.homeLayoutLoaded)
+  const loadHomeLayout = useAppStore((s) => s.loadHomeLayout)
+  const setHomeLayoutMode = useAppStore((s) => s.setHomeLayoutMode)
+  const setHomeLayoutItems = useAppStore((s) => s.setHomeLayoutItems)
+  const saveHomeLayout = useAppStore((s) => s.saveHomeLayout)
+  const resetHomeLayout = useAppStore((s) => s.resetHomeLayout)
+  const items = homeLayout?.items ?? []
+  const loading = !homeLayoutLoaded || !homeLayout
+  const fallbackLayout = useMemo(() => defaultLayout(), [])
   const loadProjects = useAppStore((s) => s.loadProjects)
   const refresh = useAppStore((s) => s.refreshAfterFilesChange)
   const pushToast = useAppStore((s) => s.pushToast)
@@ -197,69 +205,17 @@ export function HomePage() {
   }, [items])
 
   useEffect(() => {
-    void window.workdeck.home.getLayout().then((layout: HomeLayout | null) => {
-      const saved = layout?.items ?? defaultLayout()
-      let migrated = false
-      let raw = saved.map((it) => {
-        if (it.kind !== 'ai' || (it.w >= 3 && it.h >= 3)) return it
-        migrated = true
-        return { ...it, w: Math.max(3, it.w), h: Math.max(3, it.h) }
-      })
-      // Existing users keep their layout; add the new 3×3 AI card to the
-      // nearest free slot once, then persist the migrated layout. Older 2×2
-      // instances are enlarged and collision-repaired in the same migration.
-      if (!saved.some((it) => it.kind === 'ai')) {
-        const extent = saved.reduce((m, it) => Math.max(m, it.x + it.w), 12)
-        const pos = findFreePosition(saved, 3, 3, { cols: extent + 3, rows: ROWS })
-        if (pos) {
-          raw = [...raw, { id: newId(), kind: 'ai', x: pos.x, y: pos.y, w: 3, h: 3 }]
-          migrated = true
-        }
-      }
-      // Repair layouts whose cards overlap (e.g. saved under a different
-      // column count). Cards beyond the visible width stay put — the canvas
-      // widens to fit them; only genuinely intersecting cards are moved.
-      const extent = raw.reduce((m, it) => Math.max(m, it.x + it.w), 0)
-      const resolved = resolveOverlaps(raw, { cols: Math.max(12, extent), rows: ROWS })
-      setItems(resolved)
-      if (migrated) void window.workdeck.home.saveLayout({ version: 1, items: resolved })
-      setLoading(false)
-    })
+    void loadHomeLayout(fallbackLayout)
     // Ensure dashboard widgets have data
     void loadProjects()
     void refresh()
-  }, [loadProjects, refresh])
-
-  const saveTimer = useRef<number | null>(null)
-  const scheduleSave = useCallback((next: LayoutItem[]) => {
-    if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => {
-      const payload: HomeLayout = {
-        version: 1,
-        items: next.map((it) => ({
-          id: it.id,
-          kind: it.kind,
-          x: it.x,
-          y: it.y,
-          w: it.w,
-          h: it.h,
-          title: it.title,
-          meta: it.meta
-        }))
-      }
-      void window.workdeck.home.saveLayout(payload)
-    }, 500)
-  }, [])
+  }, [fallbackLayout, loadHomeLayout, loadProjects, refresh])
 
   const handleChange = useCallback(
     (next: LayoutItem) => {
-      setItems((prev) => {
-        const arr = prev.map((it) => (it.id === next.id ? next : it))
-        scheduleSave(arr)
-        return arr
-      })
+      setHomeLayoutItems(items.map((it) => (it.id === next.id ? next : it)))
     },
-    [scheduleSave]
+    [items, setHomeLayoutItems]
   )
 
   const handleRemove = useCallback(
@@ -273,13 +229,9 @@ export function HomePage() {
   const confirmRemove = useCallback(() => {
     if (!removing) return
     const id = removing.id
-    setItems((prev) => {
-      const arr = prev.filter((it) => it.id !== id)
-      scheduleSave(arr)
-      return arr
-    })
+    setHomeLayoutItems(items.filter((it) => it.id !== id))
     setRemoving(null)
-  }, [removing, scheduleSave])
+  }, [items, removing, setHomeLayoutItems])
 
   const handleAdd = useCallback(
     (kind: WidgetKind) => {
@@ -291,14 +243,13 @@ export function HomePage() {
         ...items,
         { id: newId(), kind, x: pos.x, y: pos.y, w: size.w, h: size.h }
       ]
-      setItems(next)
-      scheduleSave(next)
+      setHomeLayoutItems(next)
       setAdding(false)
     },
-    [items, scheduleSave]
+    [items, setHomeLayoutItems]
   )
 
-  if (!customLayout) return <TodayCenter onCustomLayout={() => setCustomLayout(true)} />
+  if (homeLayoutMode === 'view') return <TodayCenter onCustomLayout={() => setHomeLayoutMode('edit')} />
 
   return (
     <main className="workspace" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
@@ -311,14 +262,15 @@ export function HomePage() {
         <div className="sub" style={{ paddingRight: '9rem' }}>
           自由布局 · 拖动卡片调整位置，右下角调整大小
         </div>
-        <button
-          className="btn btn-primary btn-sm"
-          style={{ position: 'absolute', top: 0, right: 0 }}
-          onClick={() => setAdding(true)}
-        >
-          <Plus size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
-          添加卡片
-        </button>
+        <div className="home-edit-actions" style={{ position: 'absolute', top: 0, right: 0 }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => void resetHomeLayout(fallbackLayout)}>恢复默认</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => void saveHomeLayout()}>保存布局</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
+            <Plus size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+            添加卡片
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={async () => { await saveHomeLayout(); setHomeLayoutMode('view') }}>完成编辑</button>
+        </div>
       </div>
 
       {habit && habit.items.length > 0 && (

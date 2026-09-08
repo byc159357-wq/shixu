@@ -2656,6 +2656,8 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
 .v04-shell .workspace > * { max-width: 1280px; margin-inline: auto; width: 100%; }
 .v04-shell .workspace h1 { font-size: clamp(1.75rem, 2.2vw, 2.5rem); font-weight: 720; letter-spacing: -0.035em; }
 .v04-shell .workspace .sub { margin-bottom: 2.25rem; color: var(--text-3); font-size: var(--fs-body-sm); }
+.home-edit-actions { display: flex; align-items: center; gap: 0.5rem; }
+.home-edit-actions .btn { white-space: nowrap; }
 
 .v04-shell .card {
   border-radius: 0.95rem;
@@ -2702,6 +2704,7 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
   .v04-shell .dock.sidebar-nav { display: none; }
   .v04-shell .workspace { padding: 1.5rem 1rem 3rem; }
   .hermes-assistant { right: 0.75rem; bottom: 0.75rem; width: min(24rem, calc(100vw - 1.5rem)); }
+  .home-edit-actions { position: static !important; flex-wrap: wrap; margin-top: 0.75rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
