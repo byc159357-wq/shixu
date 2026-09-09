@@ -82,6 +82,7 @@ export function ClockWidget() {
 export function TodayWidget() {
   const todayTasks = useAppStore((s) => s.todayTasks)
   const completeTask = useAppStore((s) => s.completeTask)
+  const setFocusTask = useAppStore((s) => s.setFocusTask)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div className="file-meta">
@@ -97,10 +98,19 @@ export function TodayWidget() {
         {todayTasks.today.map((t) => (
           <div key={t.id} className="file-row" style={{ minHeight: 0, padding: '0.25rem 0.5rem' }}>
             <button
-              onClick={() => void completeTask(t.id)}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-1)', fontSize: 'var(--fs-caption)' }}
+              title="设为当前关注任务"
+              onClick={() => void setFocusTask(t.id)}
+              style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-1)', fontSize: 'var(--fs-caption)', textAlign: 'left' }}
             >
               {t.title}
+            </button>
+            <button
+              className="mini-btn"
+              title="标记完成"
+              onClick={() => void completeTask(t.id)}
+              aria-label={`完成任务：${t.title}`}
+            >
+              <CheckCircle size={14} />
             </button>
           </div>
         ))}

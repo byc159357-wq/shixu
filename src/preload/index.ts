@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC, EVENTS } from '../main/ipc/channels'
-import type { UpdateStatus, WorkdeckApi } from '../shared/types'
+import type { IntelligenceSnapshot, ProjectMemory, UpdateStatus, WorkdeckApi, WorkspaceContext } from '../shared/types'
 
 /**
  * The only surface the renderer can touch. Whitelist-only:
@@ -82,6 +82,10 @@ const api: WorkdeckApi = {
     configSave: (input) => ipcRenderer.invoke(IPC.AI_CONFIG_SAVE, input),
     test: (input) => ipcRenderer.invoke(IPC.AI_TEST, { config: input })
   },
+  intelligence: {
+    get: () => ipcRenderer.invoke(IPC.INTELLIGENCE_GET),
+    refresh: () => ipcRenderer.invoke(IPC.INTELLIGENCE_REFRESH)
+  },
   scenario: {
     list: () => ipcRenderer.invoke(IPC.SCENARIO_LIST),
     create: (input) => ipcRenderer.invoke(IPC.SCENARIO_CREATE, input),
@@ -150,6 +154,17 @@ const api: WorkdeckApi = {
     getLayout: () => ipcRenderer.invoke(IPC.HOME_LAYOUT_GET),
     saveLayout: (layout) => ipcRenderer.invoke(IPC.HOME_LAYOUT_SET, layout)
   },
+  workspace: {
+    getContext: () => ipcRenderer.invoke(IPC.WORKSPACE_GET_CONTEXT),
+    setCurrentProject: (projectId) => ipcRenderer.invoke(IPC.WORKSPACE_SET_PROJECT, projectId),
+    setCurrentScene: (sceneId) => ipcRenderer.invoke(IPC.WORKSPACE_SET_SCENE, sceneId),
+    setFocusTask: (taskId) => ipcRenderer.invoke(IPC.WORKSPACE_SET_FOCUS_TASK, taskId)
+  },
+  memory: {
+    get: (projectId) => ipcRenderer.invoke(IPC.MEMORY_GET, { projectId }),
+    update: (projectId, patch) => ipcRenderer.invoke(IPC.MEMORY_UPDATE, { projectId, patch }),
+    record: (projectId, input) => ipcRenderer.invoke(IPC.MEMORY_RECORD, { projectId, input })
+  },
   boxes: {
     list: (kind) => ipcRenderer.invoke(IPC.BOXES_LIST, { kind }),
     launch: (path, kind, name) =>
@@ -188,6 +203,27 @@ const api: WorkdeckApi = {
     ipcRenderer.on(EVENTS.FILE_CHANGED, listener)
     return () => {
       ipcRenderer.removeListener(EVENTS.FILE_CHANGED, listener)
+    }
+  },
+  onWorkspaceChanged: (cb) => {
+    const listener = (_e: unknown, context: WorkspaceContext) => cb(context)
+    ipcRenderer.on(EVENTS.WORKSPACE_CHANGED, listener)
+    return () => {
+      ipcRenderer.removeListener(EVENTS.WORKSPACE_CHANGED, listener)
+    }
+  },
+  onMemoryChanged: (cb) => {
+    const listener = (_e: unknown, projectId: string, memory: ProjectMemory) => cb(projectId, memory)
+    ipcRenderer.on(EVENTS.MEMORY_CHANGED, listener)
+    return () => {
+      ipcRenderer.removeListener(EVENTS.MEMORY_CHANGED, listener)
+    }
+  },
+  onIntelligenceChanged: (cb) => {
+    const listener = (_e: unknown, snapshot: IntelligenceSnapshot) => cb(snapshot)
+    ipcRenderer.on(EVENTS.INTELLIGENCE_CHANGED, listener)
+    return () => {
+      ipcRenderer.removeListener(EVENTS.INTELLIGENCE_CHANGED, listener)
     }
   },
   onClipboardChanged: (cb) => {

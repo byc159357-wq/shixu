@@ -14,7 +14,7 @@ import {
   Play
 } from '@phosphor-icons/react'
 import { useAppStore, type Module } from './store'
-import type { SearchResult, ScenarioPreset, AppEntry, BoxKind } from '../../shared/types'
+import type { IntelligenceSnapshot, SearchResult, WorkMode, AppEntry, BoxKind, WorkspaceContext } from '../../shared/types'
 import { Button, ContextMenuOverlay, Modal, ToastStack } from './components/ui'
 import { DetailPopover } from './components/DetailPopover'
 import { Logo } from './components/Logo'
@@ -157,7 +157,7 @@ const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
     label: 'Planning',
     items: [
       { id: 'calendar', icon: <CalendarDots size={18} />, title: '日历与倒计时', label: '计划' },
-      { id: 'scenarios', icon: <Play size={18} />, title: '场景中心', label: '场景' }
+      { id: 'scenarios', icon: <Play size={18} />, title: '工作模式', label: '模式' }
     ]
   },
   { id: 'intelligence', label: 'Intelligence', items: [{ id: 'ai', icon: <Sparkle size={18} />, title: '打开 Hermes 助手', label: 'Hermes' }] },
@@ -294,7 +294,7 @@ const PAL_KIND_LABEL: Record<string, string> = {
   project: '项目',
   app: '软件',
   folder: '文件夹',
-  scenario: '场景'
+  scenario: '工作模式'
 }
 
 /* A single launcher row: whatever source it came from (FTS / software boxes /
@@ -317,7 +317,7 @@ function CommandPalette() {
   const palettePrefill = useAppStore((s) => s.palettePrefill)
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [scenarios, setScenarios] = useState<ScenarioPreset[]>([])
+  const [scenarios, setScenarios] = useState<WorkMode[]>([])
   const [apps, setApps] = useState<AppEntry[]>([])
   const [folders, setFolders] = useState<AppEntry[]>([])
   const [active, setActive] = useState(0)
@@ -334,7 +334,7 @@ function CommandPalette() {
     void window.workdeck.search.sync()
     if (!launcherLoaded.current) {
       launcherLoaded.current = true
-      void window.workdeck.scenario.list().then((s: ScenarioPreset[]) => setScenarios(s))
+      void window.workdeck.scenario.list().then((s: WorkMode[]) => setScenarios(s))
       void window.workdeck.boxes.list('apps').then((a: AppEntry[]) => setApps(a))
       void window.workdeck.boxes.list('folders').then((f: AppEntry[]) => setFolders(f))
     }
@@ -592,6 +592,8 @@ export default function App() {
   const openPalette = useAppStore((s) => s.openPalette)
   const closePalette = useAppStore((s) => s.closePalette)
   const refreshAfterFilesChange = useAppStore((s) => s.refreshAfterFilesChange)
+  const loadWorkspaceContext = useAppStore((s) => s.loadWorkspaceContext)
+  const loadIntelligence = useAppStore((s) => s.loadIntelligence)
   const appShellRef = useRef<HTMLDivElement>(null)
   const [showStartup, setShowStartup] = useState(true)
   const [hermesOpen, setHermesOpen] = useState(false)
@@ -637,6 +639,31 @@ export default function App() {
   useEffect(() => {
     void loadProjects()
   }, [loadProjects])
+
+  // Keep the live Zustand context in sync with actions recorded by the main
+  // process (file opens, scene launches and completed tasks).
+  useEffect(() => {
+    return window.workdeck.onWorkspaceChanged((workspaceContext: WorkspaceContext) => {
+      useAppStore.setState({
+        workspaceContext,
+        currentProjectId: workspaceContext.currentProject?.id ?? null
+      })
+    })
+  }, [])
+
+  useEffect(() => {
+    void loadWorkspaceContext()
+  }, [loadWorkspaceContext])
+
+  useEffect(() => {
+    return window.workdeck.onIntelligenceChanged((intelligence: IntelligenceSnapshot) => {
+      useAppStore.setState({ intelligence })
+    })
+  }, [])
+
+  useEffect(() => {
+    void loadIntelligence()
+  }, [loadIntelligence])
 
   // Load email config (then inbox count/list) on startup
   const loadEmailInfo = useAppStore((s) => s.loadEmailInfo)

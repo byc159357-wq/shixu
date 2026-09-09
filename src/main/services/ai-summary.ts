@@ -4,6 +4,8 @@
  * feed the same context to an LLM (llm mode). Pure functions → unit-testable.
  */
 
+import type { ProjectMemory } from '../../shared/types'
+
 export interface ProjectContextInput {
   name: string
   status: string
@@ -13,6 +15,8 @@ export interface ProjectContextInput {
   notes: number
   files: number
   dueSoon: string[] // titles of tasks due within 3 days
+  memory?: ProjectMemory
+  importantFileNames?: string[]
 }
 
 /** Human-readable fallback summary (no LLM configured). */
@@ -28,11 +32,24 @@ export function buildLocalSummary(ctx: ProjectContextInput): string {
 
 /** Structured fact blob for the LLM summarizer. */
 export function buildPromptContext(ctx: ProjectContextInput): string {
-  return [
+  const lines = [
     `项目：${ctx.name}（状态：${ctx.status}）`,
     `任务：进行中 ${ctx.openTasks}，逾期 ${ctx.overdueTasks}，已完成 ${ctx.doneTasks}`,
     ctx.dueSoon.length > 0 ? `3 天内截止：${ctx.dueSoon.join('、')}` : '3 天内无截止任务',
     `笔记：${ctx.notes} 篇`,
     `文件引用：${ctx.files} 个`
-  ].join('\n')
+  ]
+  if (ctx.memory) {
+    lines.push('项目长期记忆：')
+    lines.push(ctx.memory.preferences.length > 0 ? `项目偏好：${ctx.memory.preferences.join('；')}` : '项目偏好：暂无')
+    lines.push(ctx.memory.decisions.length > 0 ? `历史决策：${ctx.memory.decisions.join('；')}` : '历史决策：暂无')
+    lines.push(ctx.memory.aiNotes.length > 0 ? `AI记录：${ctx.memory.aiNotes.join('；')}` : 'AI记录：暂无')
+    if (ctx.importantFileNames && ctx.importantFileNames.length > 0) {
+      lines.push(`重要文件：${ctx.importantFileNames.join('、')}`)
+    }
+    if (ctx.memory.history.length > 0) {
+      lines.push(`最近项目操作：${ctx.memory.history.slice(0, 8).map((item) => `${item.action}（${item.detail}）`).join('；')}`)
+    }
+  }
+  return lines.join('\n')
 }

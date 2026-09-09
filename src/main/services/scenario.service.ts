@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Db } from './db'
 import { OpenLogService, type OpenLogKind, type OpenLogRow } from './open-log.service'
-import type { SceneItem, ScenarioCandidate, ScenarioPreset, ScenarioSuggestion } from '../../shared/types'
+import type { SceneItem, ScenarioCandidate, ScenarioPreset, ScenarioSuggestion, WorkMode, WorkModeInput, WorkModePatch } from '../../shared/types'
 
 /**
  * Scenario presets (场景预设) — V2 of the “帮我准备工作” story.
@@ -22,6 +22,7 @@ const SESSION_WINDOW_MS = 6 * 60 * 60 * 1000 // a single session never spans pas
 const LEARN_ROWS = 1500 // how much open_log history we mine
 const DAILY_REVIEW_KEY = 'scenario.dailyReviewDate'
 const CANDIDATE_SNOOZE_MS = 30 * 24 * 60 * 60 * 1000
+const WORK_MODE_META_PREFIX = 'workmode.meta.'
 
 interface PresetRow {
   id: string
@@ -48,16 +49,14 @@ interface CandidateRow {
   updated_at: string
 }
 
-export interface ScenarioInput {
-  name: string
-  description?: string
-  items: SceneItem[]
-}
+export type ScenarioInput = WorkModeInput
+export type ScenePatch = WorkModePatch
 
-export interface ScenePatch {
-  name?: string
-  description?: string
-  items?: SceneItem[]
+interface WorkModeMeta {
+  project: string | null
+  tasks: string[]
+  lastUsed: string | null
+  usageCount: number
 }
 
 /** Batch-renamer: given one list of items per candidate, return a short name
@@ -267,7 +266,7 @@ export class ScenarioService {
     return this.listCandidates()
   }
 
-  acceptCandidate(id: string): ScenarioPreset {
+  acceptCandidate(id: string): WorkMode {
     const row = this.db.prepare(`SELECT * FROM scenario_candidates WHERE id = ? AND status = 'pending'`).get(id) as CandidateRow | undefined
     if (!row) throw new Error('场景建议不存在或已处理')
     const candidate = deserializeCandidate(row)
@@ -289,14 +288,57 @@ export class ScenarioService {
     this.db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(key, value)
   }
 
-  list(): ScenarioPreset[] {
+  private readMeta(id: string): WorkModeMeta {
+    const raw = this.setting(`${WORK_MODE_META_PREFIX}${id}`)
+    if (!raw) return { project: null, tasks: [], lastUsed: null, usageCount: 0 }
+    try {
+      const parsed = JSON.parse(raw) as Partial<WorkModeMeta>
+      return {
+        project: typeof parsed.project === 'string' ? parsed.project : null,
+        tasks: this.cleanTaskIds(parsed.tasks),
+        lastUsed: typeof parsed.lastUsed === 'string' ? parsed.lastUsed : null,
+        usageCount: typeof parsed.usageCount === 'number' && Number.isFinite(parsed.usageCount)
+          ? Math.max(0, Math.floor(parsed.usageCount))
+          : 0
+      }
+    } catch {
+      return { project: null, tasks: [], lastUsed: null, usageCount: 0 }
+    }
+  }
+
+  private saveMeta(id: string, meta: WorkModeMeta): void {
+    this.setSetting(`${WORK_MODE_META_PREFIX}${id}`, JSON.stringify(meta))
+  }
+
+  private cleanTaskIds(ids: unknown): string[] {
+    if (!Array.isArray(ids)) return []
+    return [...new Set(ids.filter((id): id is string => typeof id === 'string' && Boolean(id.trim())).map((id) => id.trim()))].slice(0, 50)
+  }
+
+  private deserializeMode(row: PresetRow, meta?: WorkModeMeta): WorkMode {
+    const base = deserialize(row)
+    const workMeta = meta ?? this.readMeta(row.id)
+    const apps = base.items.filter((item) => ['app', 'apps', 'box', 'application'].includes(item.kind.toLowerCase()))
+    const folders = base.items.filter((item) => ['folder', 'folders', 'directory'].includes(item.kind.toLowerCase()))
+    return {
+      ...base,
+      apps,
+      folders,
+      project: workMeta.project,
+      tasks: workMeta.tasks,
+      lastUsed: workMeta.lastUsed,
+      usageCount: workMeta.usageCount
+    }
+  }
+
+  list(): WorkMode[] {
     const rows = this.db
       .prepare(`SELECT * FROM scenario_presets ORDER BY updated_at DESC`)
       .all() as PresetRow[]
-    return rows.map(deserialize)
+    return rows.map((row) => this.deserializeMode(row))
   }
 
-  create(input: ScenarioInput): ScenarioPreset {
+  create(input: ScenarioInput): WorkMode {
     const name = input.name.trim() || '未命名场景'
     const now = new Date().toISOString()
     const id = randomUUID()
@@ -306,7 +348,22 @@ export class ScenarioService {
          VALUES (?, ?, ?, ?, 0, ?, ?)`
       )
       .run(id, name, input.description ?? '', JSON.stringify(input.items), now, now)
-    return { id, name, description: input.description ?? '', items: input.items, auto: 0, createdAt: now, updatedAt: now }
+    const mode = this.deserializeMode({
+      id,
+      name,
+      description: input.description ?? '',
+      items_json: JSON.stringify(input.items),
+      auto: 0,
+      created_at: now,
+      updated_at: now
+    }, {
+      project: input.project ?? null,
+      tasks: this.cleanTaskIds(input.tasks),
+      lastUsed: null,
+      usageCount: 0
+    })
+    this.saveMeta(mode.id, { project: mode.project, tasks: mode.tasks, lastUsed: mode.lastUsed, usageCount: mode.usageCount })
+    return mode
   }
 
   private get(id: string): PresetRow | null {
@@ -315,7 +372,7 @@ export class ScenarioService {
       | undefined) ?? null
   }
 
-  update(id: string, patch: ScenePatch): ScenarioPreset {
+  update(id: string, patch: ScenePatch): WorkMode {
     const existing = this.get(id)
     if (!existing) throw new Error(`场景不存在：${id}`)
     const name = patch.name !== undefined ? patch.name.trim() || '未命名场景' : existing.name
@@ -326,11 +383,20 @@ export class ScenarioService {
         `UPDATE scenario_presets SET name = ?, description = ?, items_json = ?, updated_at = ? WHERE id = ?`
       )
       .run(name, description, JSON.stringify(items), new Date().toISOString(), id)
+    const current = this.deserializeMode(existing)
+    const meta: WorkModeMeta = {
+      project: patch.project !== undefined ? patch.project : current.project,
+      tasks: patch.tasks !== undefined ? this.cleanTaskIds(patch.tasks) : current.tasks,
+      lastUsed: current.lastUsed,
+      usageCount: current.usageCount
+    }
+    this.saveMeta(id, meta)
     return this.list().find((p) => p.id === id)!
   }
 
   remove(id: string): void {
     this.db.prepare(`DELETE FROM scenario_presets WHERE id = ?`).run(id)
+    this.db.prepare(`DELETE FROM settings WHERE key = ?`).run(`${WORK_MODE_META_PREFIX}${id}`)
   }
 
   /** Give one preset a better name: LLM-named when a renamer is wired, else
@@ -408,7 +474,22 @@ export class ScenarioService {
   async apply(id: string): Promise<{ ok: boolean; errors: string[] }> {
     const preset = this.list().find((p) => p.id === id)
     if (!preset) return { ok: false, errors: ['场景不存在'] }
-    return this.applyItems(preset.items)
+    const result = await this.applyItems(preset.items)
+    this.markUsed(id)
+    return result
+  }
+
+  markUsed(id: string): WorkMode {
+    const mode = this.list().find((p) => p.id === id)
+    if (!mode) throw new Error(`工作模式不存在：${id}`)
+    const meta: WorkModeMeta = {
+      project: mode.project,
+      tasks: mode.tasks,
+      lastUsed: new Date().toISOString(),
+      usageCount: mode.usageCount + 1
+    }
+    this.saveMeta(id, meta)
+    return this.list().find((p) => p.id === id)!
   }
 
   /** Open an arbitrary batch of items (records each open). Shared by apply() and
@@ -456,7 +537,7 @@ export class ScenarioService {
       if (!Number.isNaN(ts) && ts >= cutoff) recentPaths.add(r.path)
     }
 
-    let best: ScenarioPreset | null = null
+    let best: WorkMode | null = null
     let bestOverlap = 0
     for (const p of presets) {
       const overlap = p.items.filter((it) => recentPaths.has(it.path)).length

@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type HTM
 import type * as React from 'react'
 import { Plus, X, CaretRight, CaretLeft, MagnifyingGlass, TrendUp, ArrowUpRight, FolderOpen, Play, Clock, CheckCircle, Sparkle } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
-import type { LayoutItem, WidgetKind, HabitItem, HabitSuggestResult, ScenarioPreset } from '../../../shared/types'
+import type { LayoutItem, WidgetKind, HabitItem, HabitSuggestResult, IntelligenceSuggestion, WorkMode, WorkspaceAction } from '../../../shared/types'
 import { findFreePosition, newId } from '../lib/grid-layout'
 import { clampCols } from '../hooks/useGridDragResize'
 import { DashboardCanvas } from '../components/DashboardCanvas'
@@ -17,38 +17,75 @@ function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
   const projects = useAppStore((s) => s.projects)
   const currentProjectId = useAppStore((s) => s.currentProjectId)
   const libraryFiles = useAppStore((s) => s.libraryFiles)
+  const workspaceContext = useAppStore((s) => s.workspaceContext)
+  const openFile = useAppStore((s) => s.openFile)
   const setModule = useAppStore((s) => s.setModule)
   const selectProject = useAppStore((s) => s.selectProject)
   const pushToast = useAppStore((s) => s.pushToast)
-  const [scenes, setScenes] = useState<ScenarioPreset[]>([])
-  const [habit, setHabit] = useState<HabitSuggestResult | null>(null)
-  const currentProject = projects.find((p) => p.id === currentProjectId) ?? projects[0]
+  const intelligence = useAppStore((s) => s.intelligence)
+  const refreshIntelligence = useAppStore((s) => s.refreshIntelligence)
+  const [scenes, setScenes] = useState<WorkMode[]>([])
+  const currentProject = workspaceContext?.currentProject ?? projects.find((p) => p.id === currentProjectId) ?? null
 
   useEffect(() => {
     let alive = true
-    void Promise.all([
-      window.workdeck.scenario.list(),
-      window.workdeck.ai.habit()
-    ]).then(([nextScenes, nextHabit]) => {
+    void window.workdeck.scenario.list().then((nextScenes: WorkMode[]) => {
       if (!alive) return
-      setScenes((nextScenes as ScenarioPreset[]).slice(0, 4))
-      setHabit(nextHabit as HabitSuggestResult)
+      setScenes((nextScenes as WorkMode[]).slice().sort((a, b) => {
+        const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : 0
+        const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : 0
+        return bTime - aTime || b.usageCount - a.usageCount
+      }).slice(0, 4))
     }).catch(() => { /* empty state remains useful when services are offline */ })
     return () => { alive = false }
   }, [])
 
-  const recent = [...libraryFiles]
-    .sort((a, b) => new Date(b.lastOpenedAt ?? b.last_seen_at).getTime() - new Date(a.lastOpenedAt ?? a.last_seen_at).getTime())
-    .slice(0, 5)
-  const timeline = [
-    ...projects.slice(0, 3).map((project) => ({ id: `project-${project.id}`, label: project.name, detail: '项目更新', at: project.updated_at, icon: FolderOpen })),
-    ...recent.slice(0, 3).map((file) => ({ id: `file-${file.id}`, label: file.name, detail: '最近打开', at: file.lastOpenedAt ?? file.last_seen_at, icon: CheckCircle }))
-  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 5)
+  // A loaded but empty context means this is a first run (or there is no
+  // recoverable session). Keep the default Today state instead of presenting
+  // unrelated library files as if they were the previous workspace.
+  const recent = workspaceContext
+    ? workspaceContext.recentFiles
+    : [...libraryFiles]
+      .sort((a, b) => new Date(b.lastOpenedAt ?? b.last_seen_at).getTime() - new Date(a.lastOpenedAt ?? a.last_seen_at).getTime())
+      .slice(0, 5)
+  const timeline = workspaceContext?.recentActions ?? []
+  const actionIcon = (action: WorkspaceAction) => {
+    if (action.type === 'project_opened') return FolderOpen
+    if (action.type === 'file_opened') return CheckCircle
+    if (action.type === 'scene_started') return Play
+    return CheckCircle
+  }
+  const continueWork = () => {
+    if (currentProject) {
+      void selectProject(currentProject.id)
+      return
+    }
+    const recentFile = recent[0]
+    if (recentFile) void openFile(recentFile.id)
+    else setModule('projects')
+  }
 
-  const runScene = async (scene: ScenarioPreset) => {
+  const runScene = async (scene: WorkMode) => {
     const result = await window.workdeck.scenario.apply(scene.id)
     if (!result.ok) pushToast('error', `部分未打开：${result.errors.join('；')}`)
     else pushToast('success', `已启动「${scene.name}」`)
+    const latest = await window.workdeck.scenario.list() as WorkMode[]
+    setScenes(latest.slice().sort((a, b) => {
+      const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : 0
+      const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : 0
+      return bTime - aTime || b.usageCount - a.usageCount
+    }).slice(0, 4))
+  }
+
+  const runSuggestion = async (suggestion: IntelligenceSuggestion) => {
+    if (suggestion.workModeId) {
+      const result = await window.workdeck.scenario.apply(suggestion.workModeId)
+      if (!result.ok) pushToast('error', `部分未打开：${result.errors.join('；')}`)
+      else pushToast('success', '已恢复最近工作模式')
+      return
+    }
+    if (suggestion.projectId) await selectProject(suggestion.projectId)
+    if (suggestion.taskId) await useAppStore.getState().setFocusTask(suggestion.taskId)
   }
 
   return (
@@ -67,14 +104,36 @@ function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
 
       <div className="today-grid">
         <section className="today-panel today-current-project">
-          <div className="today-panel-head"><span>当前项目</span><button className="today-link" onClick={() => setModule('projects')}>全部项目 <ArrowUpRight size={14} /></button></div>
-          {currentProject ? (
-            <button className="today-project-card" onClick={() => void selectProject(currentProject.id)}>
-              <span className="today-project-dot" style={{ background: currentProject.color }} />
-              <span><strong>{currentProject.name}</strong><small>{currentProject.description || '继续处理这个项目里的下一件事'}</small></span>
-              <ArrowUpRight size={17} />
-            </button>
-          ) : <div className="today-empty">还没有项目，先建立一个工作空间。</div>}
+          <div className="today-panel-head"><span>继续工作</span><button className="today-link" onClick={() => setModule('projects')}>全部项目 <ArrowUpRight size={14} /></button></div>
+          {currentProject || workspaceContext?.focusTask || recent.length > 0 ? (
+            <>
+              {currentProject && (
+                <button className="today-project-card" onClick={() => void selectProject(currentProject.id)}>
+                  <span className="today-project-dot" style={{ background: currentProject.color }} />
+                  <span><small>正在进行</small><strong>{currentProject.name}</strong><small>{currentProject.description || '继续处理这个项目里的下一件事'}</small></span>
+                  <ArrowUpRight size={17} />
+                </button>
+              )}
+              <div className="today-focus-card">
+                <span className="file-meta">当前关注</span>
+                <strong>{workspaceContext?.focusTask?.title ?? (timeline[0]?.label ?? '还没有指定任务')}</strong>
+                {workspaceContext?.focusTask?.due_date && <small>截止 {workspaceContext.focusTask.due_date}</small>}
+                {workspaceContext?.currentScene && <small>工作模式：{workspaceContext.currentScene.name}</small>}
+                {workspaceContext?.lastActiveTime && <small>上次活动：{new Date(workspaceContext.lastActiveTime).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>}
+              </div>
+              {recent.length > 0 && (
+                <div className="today-context-files">
+                  <span className="file-meta">最近文件</span>
+                  {recent.slice(0, 3).map((file) => (
+                    <button key={file.id} className="today-context-file" onClick={() => void openFile(file.id)}>
+                      <span>{file.name}</span><ArrowUpRight size={13} />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button className="btn btn-primary btn-sm today-continue-button" onClick={continueWork}>继续工作 <ArrowUpRight size={14} /></button>
+            </>
+          ) : <div className="today-empty">还没有上次工作记录，先建立一个项目开始工作。</div>}
         </section>
 
         <section className="today-panel today-task-panel">
@@ -88,18 +147,22 @@ function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
         </section>
 
         <section className="today-panel today-scene-panel">
-          <div className="today-panel-head"><span>启动场景</span><button className="today-link" onClick={() => setModule('scenarios')}>管理场景 <ArrowUpRight size={14} /></button></div>
-          {scenes.length ? <div className="today-scene-list">{scenes.map((scene) => <button key={scene.id} className="today-scene-row" onClick={() => void runScene(scene)}><span className="today-scene-icon"><Play size={14} weight="fill" /></span><span><strong>{scene.name}</strong><small>{scene.items.length} 个项目 · {scene.auto ? 'AI 学习' : '手动保存'}</small></span><ArrowUpRight size={14} /></button>)}</div> : <div className="today-empty">保存常用组合后，可以一键启动工作模式。</div>}
+          <div className="today-panel-head"><span>最近工作模式</span><button className="today-link" onClick={() => setModule('scenarios')}>管理模式 <ArrowUpRight size={14} /></button></div>
+          {scenes.length ? <div className="today-scene-list">{scenes.map((scene) => <button key={scene.id} className="today-scene-row" onClick={() => void runScene(scene)}><span className="today-scene-icon"><Play size={14} weight="fill" /></span><span><strong>{scene.name}</strong><small>{scene.project ? '含项目恢复' : '未绑定项目'} · 使用 {scene.usageCount} 次{scene.lastUsed ? ` · 最近 ${new Date(scene.lastUsed).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}` : ''}</small></span><ArrowUpRight size={14} /></button>)}</div> : <div className="today-empty">保存一个工作模式后，可以恢复软件、文件、项目和任务。</div>}
         </section>
 
         <section className="today-panel today-timeline-panel">
           <div className="today-panel-head"><span>Timeline</span><span className="today-count">最近活动</span></div>
-          {timeline.length ? <div className="today-timeline">{timeline.map((item) => { const Icon = item.icon; return <div className="today-timeline-row" key={item.id}><span className="today-timeline-line"><Icon size={14} /></span><span><strong>{item.label}</strong><small>{item.detail} · {new Date(item.at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}</small></span></div> })}</div> : <div className="today-empty">你的工作轨迹会显示在这里。</div>}
+          {timeline.length ? <div className="today-timeline">{timeline.map((item) => { const Icon = actionIcon(item); return <div className="today-timeline-row" key={item.id}><span className="today-timeline-line"><Icon size={14} /></span><span><strong>{item.label}</strong><small>{item.detail} · {new Date(item.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small></span></div> })}</div> : <div className="today-empty">你的工作轨迹会显示在这里。</div>}
         </section>
 
         <section className="today-panel today-hermes-panel">
-          <div className="today-panel-head"><span><Sparkle size={15} /> Hermes 建议</span><span className="today-status-dot">在线</span></div>
-          {habit?.items?.length ? <><p className="today-hermes-copy">根据你最近的工作节奏，下一步可以继续：</p><div className="today-hermes-list">{habit.items.slice(0, 3).map((item) => <button key={item.path} className="today-hermes-row" onClick={() => void window.workdeck.ai.prepareOpen(item).then((err: string) => { if (err) pushToast('error', err) })}><span>{item.name}</span><ArrowUpRight size={14} /></button>)}</div></> : <p className="today-hermes-copy">今天还没有足够的上下文。继续工作后，Hermes 会在这里给出更具体的建议。</p>}
+          <div className="today-panel-head"><span><Sparkle size={15} /> Hermes Intelligence</span><button className="today-link" onClick={() => void refreshIntelligence()}>刷新分析</button></div>
+          {intelligence ? <>
+            <p className="today-hermes-copy"><strong>{intelligence.headline}</strong><br />{intelligence.body}</p>
+            {intelligence.projectStatuses.length > 0 && <div className="today-intelligence-statuses">{intelligence.projectStatuses.slice(0, 3).map((status) => <div className="today-intelligence-status" key={status.projectId}><span>{status.projectName}</span><small>{status.overdueTasks > 0 ? `${status.overdueTasks} 个逾期` : `${status.openTasks} 个待办`} · {status.risk === 'stalled' ? '需要启动' : status.risk === 'overdue' ? '需优先处理' : '进行中'}</small></div>)}</div>}
+            {intelligence.suggestions.length > 0 && <div className="today-hermes-list">{intelligence.suggestions.map((suggestion) => <button key={suggestion.id} className="today-hermes-row" onClick={() => void runSuggestion(suggestion)}><span><strong>{suggestion.title}</strong><small>{suggestion.detail}</small></span><ArrowUpRight size={14} /></button>)}</div>}
+          </> : <p className="today-hermes-copy">正在读取当前工作状态…</p>}
         </section>
       </div>
     </main>

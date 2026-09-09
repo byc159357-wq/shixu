@@ -475,6 +475,148 @@ export interface ScenarioPreset {
   updatedAt: string
 }
 
+/** A Scene upgraded into a durable working state. */
+export interface WorkMode extends ScenarioPreset {
+  /** Items classified as applications or launchable software. */
+  apps: SceneItem[]
+  /** Items classified as folders. Other file items remain in `items` for compatibility. */
+  folders: SceneItem[]
+  /** Project id restored when the mode is entered. */
+  project: string | null
+  /** Task ids restored with the mode; the first task becomes the active focus task. */
+  tasks: string[]
+  lastUsed: string | null
+  usageCount: number
+}
+
+export interface WorkModeInput {
+  name: string
+  description?: string
+  items: SceneItem[]
+  project?: string | null
+  tasks?: string[]
+}
+
+export interface WorkModePatch {
+  name?: string
+  description?: string
+  items?: SceneItem[]
+  project?: string | null
+  tasks?: string[]
+}
+
+/** A recent file shown by the Today workspace context. */
+export interface WorkspaceRecentFile {
+  id: string
+  name: string
+  path: string
+  type: string
+  status: FileRow['status']
+  lastOpenedAt: string | null
+  projectIds: string[]
+}
+
+export type WorkspaceActionType =
+  | 'project_opened'
+  | 'file_opened'
+  | 'scene_started'
+  | 'task_completed'
+
+/** A durable, user-visible activity in the Today timeline. */
+export interface WorkspaceAction {
+  id: number
+  type: WorkspaceActionType
+  label: string
+  detail: string
+  at: string
+  projectId?: string | null
+  fileId?: string | null
+  sceneId?: string | null
+  taskId?: string | null
+  path?: string | null
+}
+
+/** The working context restored when the app starts. */
+export interface WorkspaceContext {
+  currentProject: Project | null
+  currentScene: WorkMode | null
+  recentFiles: WorkspaceRecentFile[]
+  recentActions: WorkspaceAction[]
+  lastActiveTime: string | null
+  focusTask: Task | null
+}
+
+/** A durable, project-scoped memory item. These are explicit user facts or notes. */
+export interface ProjectMemoryHistoryEntry {
+  id: string
+  action: string
+  detail: string
+  at: string
+}
+
+/** Long-term context attached to one project. It is stored locally in SQLite. */
+export interface ProjectMemory {
+  projectId: string
+  preferences: string[]
+  decisions: string[]
+  history: ProjectMemoryHistoryEntry[]
+  aiNotes: string[]
+  /** File ids referenced by the project and marked as important. */
+  importantFiles: string[]
+}
+
+export interface ProjectMemoryPatch {
+  preferences?: string[]
+  decisions?: string[]
+  aiNotes?: string[]
+  importantFiles?: string[]
+}
+
+/** A project-level status card produced from local project/task/memory state. */
+export interface ProjectStatusInsight {
+  projectId: string
+  projectName: string
+  status: string
+  openTasks: number
+  overdueTasks: number
+  doneTasks: number
+  memoryHighlights: string[]
+  risk: 'overdue' | 'stalled' | 'on_track'
+}
+
+export type IntelligenceSuggestionKind =
+  | 'continue_project'
+  | 'focus_task'
+  | 'resume_mode'
+  | 'review_memory'
+
+/** A bounded, actionable suggestion shown inside Today. */
+export interface IntelligenceSuggestion {
+  id: string
+  kind: IntelligenceSuggestionKind
+  title: string
+  detail: string
+  projectId?: string | null
+  workModeId?: string | null
+  taskId?: string | null
+}
+
+/** Daily Hermes Intelligence output. It is persisted in the existing settings table. */
+export interface IntelligenceSnapshot {
+  date: string
+  headline: string
+  body: string
+  projectStatuses: ProjectStatusInsight[]
+  suggestions: IntelligenceSuggestion[]
+  generatedAt: string
+  source: 'local' | 'hermes'
+}
+
+export interface ProjectMemoryHistoryInput {
+  action: string
+  detail: string
+}
+
 /** A behavior pattern mined from open_log, offered as a saveable preset. */
 export interface ScenarioSuggestion {
   /** Concise human name (LLM-named, or derived from the top items as a fallback). */
@@ -646,23 +788,29 @@ export interface WorkdeckApi {
       apiKey?: string | null
     }) => Promise<{ ok: boolean; reply: string }>
   }
+  intelligence: {
+    get: () => Promise<IntelligenceSnapshot>
+    refresh: () => Promise<IntelligenceSnapshot>
+  }
   scenario: {
-    list: () => Promise<ScenarioPreset[]>
+    list: () => Promise<WorkMode[]>
     create: (input: {
       name: string
       description?: string
       items: SceneItem[]
-    }) => Promise<ScenarioPreset>
+      project?: string | null
+      tasks?: string[]
+    }) => Promise<WorkMode>
     update: (
       id: string,
-      patch: { name?: string; description?: string; items?: SceneItem[] }
-    ) => Promise<ScenarioPreset>
+      patch: WorkModePatch
+    ) => Promise<WorkMode>
     remove: (id: string) => Promise<void>
     renameWithAi: (id: string) => Promise<string>
     learn: () => Promise<ScenarioSuggestion[]>
     candidates: () => Promise<ScenarioCandidate[]>
     reviewDaily: () => Promise<ScenarioCandidate[]>
-    acceptCandidate: (id: string) => Promise<ScenarioPreset>
+    acceptCandidate: (id: string) => Promise<WorkMode>
     dismissCandidate: (id: string, permanent?: boolean) => Promise<void>
     apply: (id: string) => Promise<{ ok: boolean; errors: string[] }>
     /** Open a raw batch of items (used by the “补齐剩余项” flow). */
@@ -676,6 +824,17 @@ export interface WorkdeckApi {
   home: {
     getLayout: () => Promise<HomeLayout | null>
     saveLayout: (layout: HomeLayout) => Promise<void>
+  }
+  workspace: {
+    getContext: () => Promise<WorkspaceContext>
+    setCurrentProject: (projectId: string | null) => Promise<WorkspaceContext>
+    setCurrentScene: (sceneId: string | null) => Promise<WorkspaceContext>
+    setFocusTask: (taskId: string | null) => Promise<WorkspaceContext>
+  }
+  memory: {
+    get: (projectId: string) => Promise<ProjectMemory>
+    update: (projectId: string, patch: ProjectMemoryPatch) => Promise<ProjectMemory>
+    record: (projectId: string, input: ProjectMemoryHistoryInput) => Promise<ProjectMemory>
   }
   boxes: {
     list: (kind: BoxKind) => Promise<AppEntry[]>
@@ -712,6 +871,9 @@ export interface WorkdeckApi {
   }
   onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void
   onFilesChanged: (cb: () => void) => () => void
+  onWorkspaceChanged: (cb: (context: WorkspaceContext) => void) => () => void
+  onMemoryChanged: (cb: (projectId: string, memory: ProjectMemory) => void) => () => void
+  onIntelligenceChanged: (cb: (snapshot: IntelligenceSnapshot) => void) => () => void
   onClipboardChanged: (cb: (entry: string) => void) => () => void
   agent: {
     /** List connectable external AI software for the agent hub switcher. */

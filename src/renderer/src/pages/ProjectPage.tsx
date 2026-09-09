@@ -19,7 +19,7 @@ import { Badge, Button, EmptyState, Modal } from '../components/ui'
 import { projectStatusLabel, typeLabel } from '../lib/labels'
 import { renderMarkdown } from '../lib/markdown'
 import { extractOutline } from '../lib/outline'
-import type { Note, NoteContent, TaskPriority, TaskWithFiles } from '../../../shared/types'
+import type { Note, NoteContent, ProjectMemory, ProjectMemoryPatch, TaskPriority, TaskWithFiles } from '../../../shared/types'
 
 const PROJECT_COLORS = ['#7C6FF0', '#5B8DEF', '#38A3A5', '#30A46C', '#F5A524', '#E5484D', '#E26D9D', '#8B9BB4']
 
@@ -115,6 +115,7 @@ function ProjectDetail({ project }: { project: Project }) {
             ['tasks', '任务'],
             ['files', '文件'],
             ['notes', 'AI记录'],
+            ['memory', 'Memory'],
             ['timeline', '时间线']
           ] as Array<[ProjectTab, string]>
         ).map(([t, label]) => (
@@ -134,6 +135,7 @@ function ProjectDetail({ project }: { project: Project }) {
       {tab === 'overview' && <OverviewTab project={project} />}
       {tab === 'tasks' && <TasksTab project={project} />}
       {tab === 'notes' && <NotesTab project={project} />}
+      {tab === 'memory' && <ProjectMemoryTab project={project} />}
       {tab === 'timeline' && (
         <PlaceholderCard title="时间线" hint="项目活动时间线将在后续 Phase 接入" />
       )}
@@ -370,6 +372,7 @@ function TasksTab({ project }: { project: Project }) {
   const projectTasks = useAppStore((s) => s.projectTasks)
   const loadProjectTasks = useAppStore((s) => s.loadProjectTasks)
   const completeTask = useAppStore((s) => s.completeTask)
+  const setFocusTask = useAppStore((s) => s.setFocusTask)
   const reopenTask = useAppStore((s) => s.reopenTask)
   const removeTask = useAppStore((s) => s.removeTask)
   const [showNew, setShowNew] = useState(false)
@@ -404,6 +407,7 @@ function TasksTab({ project }: { project: Project }) {
             <TaskRow
               key={t.id}
               task={t}
+              onFocus={() => void setFocusTask(t.id)}
               onComplete={() => void completeTask(t.id)}
               onEdit={() => setEditTask(t)}
               onDelete={() => {
@@ -416,6 +420,7 @@ function TasksTab({ project }: { project: Project }) {
               key={t.id}
               task={t}
               done
+              onFocus={() => void setFocusTask(t.id)}
               onReopen={() => void reopenTask(t.id)}
               onEdit={() => setEditTask(t)}
               onDelete={() => {
@@ -439,6 +444,7 @@ function TaskRow({
   done,
   onComplete,
   onReopen,
+  onFocus,
   onEdit,
   onDelete
 }: {
@@ -446,6 +452,7 @@ function TaskRow({
   done?: boolean
   onComplete?: () => void
   onReopen?: () => void
+  onFocus?: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -460,9 +467,9 @@ function TaskRow({
         {done ? <CheckCircle size={18} weight="fill" /> : <Circle size={18} />}
       </button>
       <span className="file-main">
-        <div className="file-name" style={{ textDecoration: done ? 'line-through' : 'none' }}>
+        <button className="file-name" title="设为当前关注任务" onClick={onFocus} style={{ display: 'block', overflow: 'hidden', maxWidth: '100%', border: 0, padding: 0, background: 'transparent', color: 'inherit', textAlign: 'left', textDecoration: done ? 'line-through' : 'none', cursor: onFocus ? 'pointer' : 'default' }}>
           {task.title}
-        </div>
+        </button>
         <div className="file-meta">
           <span style={{ color: PRIORITY_COLORS[task.priority] }}>优先级 {PRIORITY_LABELS[task.priority]}</span>
           {task.due_date && (
@@ -683,6 +690,183 @@ function EditTaskModal({
 }
 
 /* ============ Notes tab ============ */
+type MemoryListKey = 'preferences' | 'decisions' | 'aiNotes'
+
+function ProjectMemoryTab({ project }: { project: Project }) {
+  const files = useAppStore((s) => s.files)
+  const [memory, setMemory] = useState<ProjectMemory | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [historyAction, setHistoryAction] = useState('')
+  const [historyDetail, setHistoryDetail] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    void window.workdeck.memory.get(project.id).then((next: ProjectMemory) => {
+      if (!alive) return
+      setMemory(next)
+      setLoading(false)
+    }).catch(() => {
+      if (alive) setLoading(false)
+    })
+    const unsubscribe = window.workdeck.onMemoryChanged((projectId: string, next: ProjectMemory) => {
+      if (projectId === project.id) setMemory(next)
+    })
+    return () => {
+      alive = false
+      unsubscribe()
+    }
+  }, [project.id])
+
+  const update = async (patch: ProjectMemoryPatch) => {
+    const next = await window.workdeck.memory.update(project.id, patch)
+    setMemory(next)
+  }
+
+  const addItem = async (key: MemoryListKey, value: string) => {
+    if (!memory || !value.trim()) return
+    await update({ [key]: [...memory[key], value.trim()] })
+  }
+
+  const removeItem = async (key: MemoryListKey, index: number) => {
+    if (!memory) return
+    await update({ [key]: memory[key].filter((_, i) => i !== index) })
+  }
+
+  const toggleImportantFile = async (fileId: string) => {
+    if (!memory) return
+    const importantFiles = memory.importantFiles.includes(fileId)
+      ? memory.importantFiles.filter((id) => id !== fileId)
+      : [...memory.importantFiles, fileId]
+    await update({ importantFiles })
+  }
+
+  const addHistory = async () => {
+    if (!historyAction.trim() || !historyDetail.trim()) return
+    const next = await window.workdeck.memory.record(project.id, {
+      action: historyAction,
+      detail: historyDetail
+    })
+    setMemory(next)
+    setHistoryAction('')
+    setHistoryDetail('')
+  }
+
+  if (loading || !memory) {
+    return <div className="card"><div className="skeleton" /></div>
+  }
+
+  return (
+    <div className="project-memory-grid">
+      <div className="project-memory-main">
+        <MemoryListSection
+          title="项目偏好"
+          hint="记录这个项目长期保持的风格、受众和工作习惯。"
+          values={memory.preferences}
+          placeholder="例如：喜欢高级留白风格"
+          onAdd={(value) => void addItem('preferences', value)}
+          onRemove={(index) => void removeItem('preferences', index)}
+        />
+        <MemoryListSection
+          title="历史决策"
+          hint="记录已经确认的方向，方便之后继续工作时保持一致。"
+          values={memory.decisions}
+          placeholder="例如：标题优先突出景区"
+          onAdd={(value) => void addItem('decisions', value)}
+          onRemove={(index) => void removeItem('decisions', index)}
+        />
+        <MemoryListSection
+          title="AI Notes"
+          hint="只保存你明确写下的提示，暂不自动生成。"
+          values={memory.aiNotes}
+          placeholder="记录一条给 AI 的项目提示"
+          onAdd={(value) => void addItem('aiNotes', value)}
+          onRemove={(index) => void removeItem('aiNotes', index)}
+        />
+      </div>
+
+      <div className="project-memory-side">
+        <section className="card project-memory-card">
+          <div className="card-head">
+            <div><h3>重要文件</h3><div className="file-meta">标记后会作为项目上下文的一部分。</div></div>
+            <span className="today-count">{memory.importantFiles.length}</span>
+          </div>
+          {files.length === 0 ? <div className="file-meta">项目还没有文件引用。</div> : (
+            <div className="project-memory-files">
+              {files.map((file) => (
+                <label key={file.id} className="project-memory-file">
+                  <input
+                    type="checkbox"
+                    checked={memory.importantFiles.includes(file.id)}
+                    onChange={() => void toggleImportantFile(file.id)}
+                  />
+                  <span><strong>{file.name}</strong><small>{file.path}</small></span>
+                </label>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="card project-memory-card">
+          <div className="card-head">
+            <div><h3>项目历史</h3><div className="file-meta">重要操作会自动记录，也可以手动补充。</div></div>
+            <span className="today-count">{memory.history.length}</span>
+          </div>
+          <div className="project-memory-history-form">
+            <input className="input" value={historyAction} placeholder="操作类型" onChange={(e) => setHistoryAction(e.target.value)} />
+            <input className="input" value={historyDetail} placeholder="发生了什么？" onChange={(e) => setHistoryDetail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void addHistory()} />
+            <Button size="sm" variant="primary" onClick={() => void addHistory()} disabled={!historyAction.trim() || !historyDetail.trim()}>记录</Button>
+          </div>
+          {memory.history.length === 0 ? <div className="file-meta">还没有项目历史记录。</div> : (
+            <div className="project-memory-history">
+              {memory.history.slice(0, 12).map((item) => (
+                <div key={item.id} className="project-memory-history-row">
+                  <span className="project-memory-history-dot" />
+                  <span><strong>{item.action}</strong><small>{item.detail} · {new Date(item.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small></span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function MemoryListSection({
+  title,
+  hint,
+  values,
+  placeholder,
+  onAdd,
+  onRemove
+}: {
+  title: string
+  hint: string
+  values: string[]
+  placeholder: string
+  onAdd: (value: string) => void
+  onRemove: (index: number) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const add = () => {
+    if (!draft.trim()) return
+    onAdd(draft)
+    setDraft('')
+  }
+  return (
+    <section className="card project-memory-card">
+      <div className="card-head"><div><h3>{title}</h3><div className="file-meta">{hint}</div></div><span className="today-count">{values.length}</span></div>
+      {values.length === 0 ? <div className="file-meta project-memory-empty">还没有内容。</div> : (
+        <div className="project-memory-list">
+          {values.map((value, index) => <div className="project-memory-item" key={`${value}-${index}`}><span>{value}</span><button className="mini-btn" title="删除" onClick={() => onRemove(index)}><Trash size={13} /></button></div>)}
+        </div>
+      )}
+      <div className="project-memory-add"><input className="input" value={draft} placeholder={placeholder} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} /><Button size="sm" onClick={add}><Plus size={13} /> 添加</Button></div>
+    </section>
+  )
+}
+
 function NotesTab({ project }: { project: Project }) {
   const projectNotes = useAppStore((s) => s.projectNotes)
   const loadProjectNotes = useAppStore((s) => s.loadProjectNotes)

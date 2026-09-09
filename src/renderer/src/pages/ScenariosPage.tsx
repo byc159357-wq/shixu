@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Trash, Play, FloppyDisk, Sparkle, Plus, X, Images, FolderOpen, Lightning } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
 import { Badge, Button, EmptyState } from '../components/ui'
-import type { ScenarioCandidate, ScenarioPreset, ScenarioSuggestion, SceneItem } from '../../../shared/types'
+import type { ScenarioCandidate, WorkMode, ScenarioSuggestion, SceneItem } from '../../../shared/types'
 
 /** Infer a lightweight SceneItem.kind for open_log records from a picked path. */
 function kindOfPath(p: string, isFolder: boolean): string {
@@ -29,7 +29,8 @@ const KIND_LABEL: Record<string, string> = {
 
 export function ScenariosPage() {
   const pushToast = useAppStore((s) => s.pushToast)
-  const [presets, setPresets] = useState<ScenarioPreset[]>([])
+  const workspaceContext = useAppStore((s) => s.workspaceContext)
+  const [presets, setPresets] = useState<WorkMode[]>([])
   const [candidates, setCandidates] = useState<ScenarioCandidate[]>([])
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [aiBusy, setAiBusy] = useState<string | null>(null)
@@ -37,6 +38,10 @@ export function ScenariosPage() {
   const [learning, setLearning] = useState(false)
   const [savingAll, setSavingAll] = useState(false)
   const [newName, setNewName] = useState('')
+  const currentModeContext = {
+    project: workspaceContext?.currentProject?.id ?? null,
+    tasks: workspaceContext?.focusTask ? [workspaceContext.focusTask.id] : []
+  }
 
   const refresh = async () => {
     const [list, candidateList] = await Promise.all([
@@ -90,10 +95,10 @@ export function ScenariosPage() {
     }
   }
 
-  const apply = async (p: ScenarioPreset) => {
+  const apply = async (p: WorkMode) => {
     const r = await window.workdeck.scenario.apply(p.id)
     if (!r.ok) pushToast('error', `部分未打开：${r.errors.join('；')}`)
-    else pushToast('success', `已打开场景「${p.name}」`)
+    else pushToast('success', `已进入工作模式「${p.name}」`)
   }
 
   const runLearn = async () => {
@@ -106,7 +111,7 @@ export function ScenariosPage() {
   }
 
   const saveSuggestion = async (s: ScenarioSuggestion) => {
-    await window.workdeck.scenario.create({ name: s.name, items: s.items })
+    await window.workdeck.scenario.create({ name: s.name, items: s.items, ...currentModeContext })
     pushToast('success', `已保存场景「${s.name}」`)
     await refresh()
   }
@@ -116,7 +121,7 @@ export function ScenariosPage() {
     setSavingAll(true)
     try {
       for (const s of suggestions) {
-        await window.workdeck.scenario.create({ name: s.name, items: s.items })
+        await window.workdeck.scenario.create({ name: s.name, items: s.items, ...currentModeContext })
       }
       pushToast('success', `已一键保存 ${suggestions.length} 个场景`)
       await refresh()
@@ -130,19 +135,19 @@ export function ScenariosPage() {
 
   const createBlank = async () => {
     const name = newName.trim() || '新场景'
-    await window.workdeck.scenario.create({ name, items: [] })
+    await window.workdeck.scenario.create({ name, items: [], ...currentModeContext })
     setNewName('')
     pushToast('success', `已新建场景「${name}」，可向其中添加文件 / 文件夹`)
     await refresh()
   }
 
-  const removeItem = async (p: ScenarioPreset, path: string) => {
+  const removeItem = async (p: WorkMode, path: string) => {
     const items = p.items.filter((it) => it.path !== path)
     await window.workdeck.scenario.update(p.id, { items })
     await refresh()
   }
 
-  const addItem = async (p: ScenarioPreset, which: 'file' | 'folder') => {
+  const addItem = async (p: WorkMode, which: 'file' | 'folder') => {
     const path =
       which === 'folder'
         ? await window.workdeck.file.pickFolder()
@@ -160,7 +165,7 @@ export function ScenariosPage() {
     await refresh()
   }
 
-  const remove = async (p: ScenarioPreset) => {
+  const remove = async (p: WorkMode) => {
     if (!confirm(`删除场景「${p.name}」？只会删除此预设，不会删除或移动任何文件。`)) return
     await window.workdeck.scenario.remove(p.id)
     pushToast('info', `已删除场景「${p.name}」`)
@@ -169,7 +174,7 @@ export function ScenariosPage() {
 
   return (
     <main className="workspace">
-      <div className="sub">管理已保存的「场景预设」· 新建 / AI 命名 / 增删成员 / 一键整套打开</div>
+      <div className="sub">管理已保存的「工作模式」· 新建 / AI 命名 / 增删成员 / 一键恢复工作状态</div>
 
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
         <div className="card-head">
@@ -214,7 +219,7 @@ export function ScenariosPage() {
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
         <div className="card-head">
           <h3>沉淀 & 新建</h3>
-          <span className="badge badge-neutral">把使用习惯变成一句话可打开的「场景」</span>
+          <span className="badge badge-neutral">把常用组合变成可恢复项目和任务的工作模式</span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
           <input
@@ -283,7 +288,7 @@ export function ScenariosPage() {
         <div className="card">
           <EmptyState
             icon={<Sparkle size={40} weight="thin" />}
-            title="还没有场景预设"
+            title="还没有工作模式"
             hint="还没有保存的场景。用上方「新建场景」手动建一个，或在 AI 里说「帮我准备工作」再存成场景——它会由你的使用习惯沉淀而来"
           />
         </div>
@@ -302,6 +307,8 @@ export function ScenariosPage() {
                   }}
                 />
                 {p.auto === 1 && <Badge kind="accent">自动学习</Badge>}
+                {p.project && <Badge kind="available">已绑定项目</Badge>}
+                {p.tasks.length > 0 && <Badge kind="neutral">{p.tasks.length} 个任务</Badge>}
                 <Button size="sm" variant="secondary" onClick={() => void saveName(p.id)}>
                   <FloppyDisk size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
                   保存名
@@ -312,7 +319,7 @@ export function ScenariosPage() {
                 </Button>
                 <Button size="sm" variant="primary" onClick={() => void apply(p)}>
                   <Play size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
-                  打开整套
+                  进入模式
                 </Button>
                 <button className="icon-btn danger" title="删除场景" onClick={() => void remove(p)}>
                   <Trash size={14} />
@@ -320,7 +327,7 @@ export function ScenariosPage() {
               </div>
 
               <div className="file-meta" style={{ margin: 'var(--space-2) 0' }}>
-                {p.items.length} 项 · 最近更新 {p.updatedAt.slice(0, 16).replace('T', ' ')}
+                {p.items.length} 项 · 使用 {p.usageCount} 次 · 最近使用 {p.lastUsed ? p.lastUsed.slice(0, 16).replace('T', ' ') : '尚未使用'}
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

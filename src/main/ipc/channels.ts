@@ -58,6 +58,8 @@ export const IPC = {
   AI_PREPARE: 'ai:prepare',
   AI_PREPARE_OPEN: 'ai:prepareOpen',
   AI_HABIT: 'ai:habit',
+  INTELLIGENCE_GET: 'intelligence:get',
+  INTELLIGENCE_REFRESH: 'intelligence:refresh',
   AI_CONFIG_GET: 'ai:configGet',
   AI_CONFIG_SAVE: 'ai:configSave',
   AI_TEST: 'ai:test',
@@ -122,6 +124,13 @@ export const IPC = {
   UPDATE_STATUS: 'update:status',
   HOME_LAYOUT_GET: 'home:layoutGet',
   HOME_LAYOUT_SET: 'home:layoutSet',
+  WORKSPACE_GET_CONTEXT: 'workspace:getContext',
+  WORKSPACE_SET_PROJECT: 'workspace:setCurrentProject',
+  WORKSPACE_SET_SCENE: 'workspace:setCurrentScene',
+  WORKSPACE_SET_FOCUS_TASK: 'workspace:setFocusTask',
+  MEMORY_GET: 'memory:get',
+  MEMORY_UPDATE: 'memory:update',
+  MEMORY_RECORD: 'memory:record',
   BOXES_LIST: 'boxes:list',
   BOXES_LAUNCH: 'boxes:launch',
   BOXES_ADD_PATHS: 'boxes:addPaths',
@@ -143,7 +152,10 @@ export const EVENTS = {
   FILE_CHANGED: 'file:changed',
   UPDATE_STATUS: 'update:status',
   CLIPBOARD_CHANGED: 'clipboard:changed',
-  HERMES_EVENT: 'hermes:event'
+  HERMES_EVENT: 'hermes:event',
+  WORKSPACE_CHANGED: 'workspace:changed',
+  MEMORY_CHANGED: 'memory:changed',
+  INTELLIGENCE_CHANGED: 'intelligence:changed'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

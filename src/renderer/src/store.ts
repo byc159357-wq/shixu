@@ -22,7 +22,9 @@ import type {
   EmailInboxResult,
   EmailSaveInput,
   HomeLayout,
-  LayoutItem
+  LayoutItem,
+  WorkspaceContext,
+  IntelligenceSnapshot
 } from '../../shared/types'
 import { findFreePosition, newId, resolveOverlaps, type LayoutItem as GridLayoutItem } from './lib/grid-layout'
 
@@ -40,7 +42,7 @@ export type Module =
   | 'aiTasks'
   | 'scenarios'
   | 'settings'
-export type ProjectTab = 'overview' | 'tasks' | 'files' | 'notes' | 'timeline'
+export type ProjectTab = 'overview' | 'tasks' | 'files' | 'notes' | 'memory' | 'timeline'
 export type LayoutMode = 'view' | 'edit'
 
 export type DetailKind = 'project' | 'file' | 'note'
@@ -133,6 +135,8 @@ interface AppState {
   homeLayout: HomeLayout | null
   homeLayoutMode: LayoutMode
   homeLayoutLoaded: boolean
+  workspaceContext: WorkspaceContext | null
+  intelligence: IntelligenceSnapshot | null
 
   setModule: (m: Module) => void
   setProjectTab: (t: ProjectTab) => void
@@ -179,6 +183,10 @@ interface AppState {
   setHomeLayoutItems: (items: LayoutItem[]) => void
   saveHomeLayout: () => Promise<void>
   resetHomeLayout: (fallback: LayoutItem[]) => Promise<void>
+  loadWorkspaceContext: () => Promise<void>
+  loadIntelligence: () => Promise<void>
+  refreshIntelligence: () => Promise<void>
+  setFocusTask: (taskId: string | null) => Promise<void>
   loadProjects: () => Promise<void>
   createProject: (name: string) => Promise<void>
   updateProject: (
@@ -283,18 +291,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   homeLayout: null,
   homeLayoutMode: 'view',
   homeLayoutLoaded: false,
+  workspaceContext: null,
+  intelligence: null,
 
   setModule: (module) => set({ module }),
   setProjectTab: (projectTab) => set({ projectTab }),
 
   loadProjects: async () => {
     try {
-      const [projects, settings] = await Promise.all([
+      const [projects, settings, workspaceContext, intelligence] = await Promise.all([
         window.workdeck.project.list(),
-        window.workdeck.settings.getAll()
+        window.workdeck.settings.getAll(),
+        window.workdeck.workspace.getContext(),
+        window.workdeck.intelligence.get()
       ])
+      const files = workspaceContext.currentProject
+        ? await window.workdeck.file.refreshProject(workspaceContext.currentProject.id)
+        : []
       set({
         projects,
+        files,
+        workspaceContext,
+        intelligence,
+        currentProjectId: workspaceContext.currentProject?.id ?? null,
         density: settings['ui.density'],
         wallpaper: settings['app.wallpaper'],
         theme: settings['app.theme'],
@@ -320,7 +339,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateProject: async (id, patch) => {
     try {
       const updated = await window.workdeck.project.update(id, patch)
-      set((s) => ({ projects: s.projects.map((p) => (p.id === id ? updated : p)) }))
+      set((s) => ({
+        projects: s.projects.map((p) => (p.id === id ? updated : p)),
+        workspaceContext: s.workspaceContext?.currentProject?.id === id
+          ? { ...s.workspaceContext, currentProject: updated }
+          : s.workspaceContext
+      }))
     } catch (err) {
       set({ error: String(err) })
     }
@@ -331,7 +355,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       await window.workdeck.project.archive(id)
       set((s) => ({ projects: s.projects.filter((p) => p.id !== id) }))
       if (get().currentProjectId === id) {
-        set({ currentProjectId: null, files: [], selectedFileId: null })
+        const workspaceContext = await window.workdeck.workspace.setCurrentProject(null)
+        set({ currentProjectId: null, files: [], selectedFileId: null, workspaceContext })
       }
       get().pushToast('info', '项目已归档（数据保留）')
     } catch (err) {
@@ -342,6 +367,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectProject: async (id) => {
     set({ currentProjectId: id, selectedFileId: null, module: 'projects' })
     try {
+      const workspaceContext = await window.workdeck.workspace.setCurrentProject(id)
+      set({ workspaceContext, currentProjectId: workspaceContext.currentProject?.id ?? id })
       // refreshProject surfaces Missing states immediately
       const files = await window.workdeck.file.refreshProject(id)
       set({ files })
@@ -384,6 +411,42 @@ export const useAppStore = create<AppState>((set, get) => ({
   openFile: async (id) => {
     try {
       await window.workdeck.file.open(id)
+    } catch (err) {
+      set({ error: String(err) })
+    }
+  },
+
+  loadWorkspaceContext: async () => {
+    try {
+      const workspaceContext = await window.workdeck.workspace.getContext()
+      set({ workspaceContext, currentProjectId: workspaceContext.currentProject?.id ?? null })
+    } catch (err) {
+      set({ error: String(err) })
+    }
+  },
+
+  loadIntelligence: async () => {
+    try {
+      const intelligence = await window.workdeck.intelligence.get()
+      set({ intelligence })
+    } catch (err) {
+      set({ error: String(err) })
+    }
+  },
+
+  refreshIntelligence: async () => {
+    try {
+      const intelligence = await window.workdeck.intelligence.refresh()
+      set({ intelligence })
+    } catch (err) {
+      set({ error: String(err) })
+    }
+  },
+
+  setFocusTask: async (taskId) => {
+    try {
+      const workspaceContext = await window.workdeck.workspace.setFocusTask(taskId)
+      set({ workspaceContext })
     } catch (err) {
       set({ error: String(err) })
     }

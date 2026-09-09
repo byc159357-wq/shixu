@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { FloppyDisk, Play, Trash, Lightning } from '@phosphor-icons/react'
 import { Button, ConfirmModal } from './ui'
-import type { PrepareResult, ScenarioPreset, ScenarioSuggestion } from '../../../shared/types'
+import { useAppStore } from '../store'
+import type { PrepareResult, WorkMode, ScenarioSuggestion } from '../../../shared/types'
 
 const KIND_LABEL: Record<string, string> = {
   apps: '软件',
@@ -28,14 +29,19 @@ export function ScenarioPanel({
   prep: PrepareResult | null
   toast: (type: 'success' | 'error', msg: string) => void
 }) {
-  const [presets, setPresets] = useState<ScenarioPreset[]>([])
+  const workspaceContext = useAppStore((s) => s.workspaceContext)
+  const [presets, setPresets] = useState<WorkMode[]>([])
   const [loaded, setLoaded] = useState(false)
   const [suggestions, setSuggestions] = useState<ScenarioSuggestion[] | null>(null)
   const [learning, setLearning] = useState(false)
   const [savingAll, setSavingAll] = useState(false)
   const [applyingId, setApplyingId] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<ScenarioPreset | null>(null)
+  const [deleting, setDeleting] = useState<WorkMode | null>(null)
   const [prepName, setPrepName] = useState('')
+  const currentModeContext = {
+    project: workspaceContext?.currentProject?.id ?? null,
+    tasks: workspaceContext?.focusTask ? [workspaceContext.focusTask.id] : []
+  }
 
   const refresh = async () => {
     setPresets(await window.workdeck.scenario.list())
@@ -55,7 +61,7 @@ export function ScenarioPanel({
   }
 
   const saveSuggestion = async (s: ScenarioSuggestion) => {
-    await window.workdeck.scenario.create({ name: s.name, items: s.items })
+    await window.workdeck.scenario.create({ name: s.name, items: s.items, ...currentModeContext })
     toast('success', `已保存场景「${s.name}」`)
     await refresh()
   }
@@ -66,7 +72,7 @@ export function ScenarioPanel({
     setSavingAll(true)
     try {
       for (const s of suggestions) {
-        await window.workdeck.scenario.create({ name: s.name, items: s.items })
+        await window.workdeck.scenario.create({ name: s.name, items: s.items, ...currentModeContext })
       }
       toast('success', `已一键保存 ${suggestions.length} 个场景`)
       await refresh()
@@ -82,13 +88,13 @@ export function ScenarioPanel({
     if (!prep || prep.items.length === 0) return
     const name = prepName.trim() || '本次工作'
     const items = prep.items.map((it) => ({ kind: it.kind, name: it.name, path: it.path }))
-    await window.workdeck.scenario.create({ name, items })
+    await window.workdeck.scenario.create({ name, items, ...currentModeContext })
     toast('success', `已保存场景「${name}」`)
     setPrepName('')
     await refresh()
   }
 
-  const applyPreset = async (p: ScenarioPreset) => {
+  const applyPreset = async (p: WorkMode) => {
     setApplyingId(p.id)
     try {
       const r = await window.workdeck.scenario.apply(p.id)
@@ -102,8 +108,8 @@ export function ScenarioPanel({
   return (
     <div className="card">
       <div className="card-head">
-        <h3>场景预设</h3>
-        <span className="badge badge-neutral">把常用工作组合固化，一句话恢复整套上下文</span>
+        <h3>工作模式</h3>
+        <span className="badge badge-neutral">保存软件、文件、项目和任务，一键恢复工作状态</span>
       </div>
 
       <div className="file-meta" style={{ marginBottom: 'var(--space-3)' }}>
@@ -121,7 +127,7 @@ export function ScenarioPanel({
             />
             <Button size="sm" variant="primary" onClick={() => void savePrep()}>
               <FloppyDisk size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
-              保存本次『帮我准备工作』为场景
+              保存本次工作为模式
             </Button>
           </div>
         )}
@@ -199,7 +205,9 @@ export function ScenarioPanel({
                 <div className="file-name" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   {p.name}
                   {p.auto === 1 && <span className="badge badge-neutral">自动</span>}
-                  <span className="badge badge-neutral">{p.items.length} 项 · 建于 {relTime(p.createdAt)}</span>
+                  <span className="badge badge-neutral">{p.items.length} 项 · 使用 {p.usageCount} 次</span>
+                  {p.project && <span className="badge badge-available">已绑定项目</span>}
+                  {p.tasks.length > 0 && <span className="badge badge-neutral">{p.tasks.length} 个任务</span>}
                 </div>
                 {p.description && (
                   <div className="file-meta" style={{ marginTop: 2 }}>{p.description}</div>
@@ -215,7 +223,7 @@ export function ScenarioPanel({
               <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <Button size="sm" variant="primary" onClick={() => void applyPreset(p)} disabled={applyingId === p.id} title="一键打开该场景所有项目">
                   <Play size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
-                  {applyingId === p.id ? '打开中…' : '一键打开'}
+                  {applyingId === p.id ? '进入中…' : '进入模式'}
                 </Button>
                 <Button size="sm" variant="danger" onClick={() => setDeleting(p)} aria-label="删除场景">
                   <Trash size={13} />
@@ -227,7 +235,7 @@ export function ScenarioPanel({
       )}
 
       <div className="file-meta" style={{ marginTop: 'var(--space-3)' }}>
-        提示：打开是安全动作，可一键执行；场景只会记录路径与名称，不读取文件内容。
+        提示：进入工作模式会打开保存的软件、文件和文件夹，并恢复绑定的项目与任务；只记录路径与名称，不读取文件内容。
       </div>
 
       {deleting && (

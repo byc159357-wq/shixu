@@ -98,6 +98,30 @@ describe('ScenarioService', () => {
     expect(db.prepare(`SELECT count(*) AS n FROM open_log`).get() as { n: number }).toMatchObject({ n: 2 })
   })
 
+  it('persists work mode context and usage statistics', async () => {
+    const p = svc.create({
+      name: '海报设计',
+      items: [
+        { kind: 'apps', name: 'Photoshop.exe', path: '/ps.exe' },
+        { kind: 'folders', name: '素材', path: '/materials' },
+        { kind: 'file', name: 'poster.psd', path: '/poster.psd' }
+      ],
+      project: 'project-1',
+      tasks: ['task-1', 'task-2']
+    })
+    expect(p.apps).toHaveLength(1)
+    expect(p.folders).toHaveLength(1)
+    expect(p.project).toBe('project-1')
+    expect(p.tasks).toEqual(['task-1', 'task-2'])
+    expect(p.usageCount).toBe(0)
+
+    await svc.apply(p.id)
+    const used = svc.list().find((item) => item.id === p.id)!
+    expect(used.usageCount).toBe(1)
+    expect(used.lastUsed).toBeTruthy()
+    expect(used.project).toBe('project-1')
+  })
+
   it('reports per-item errors from apply without stopping the batch', async () => {
     const bad = new ScenarioService(db, async (p) => (p === '/gone.exe' ? 'ENOENT' : ''))
     const p = bad.create({

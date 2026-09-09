@@ -19,7 +19,13 @@ import { LlmAgent, type AgentAdapter } from '../services/agent-adapter'
 import { PrepareService } from '../services/prepare.service'
 import { HabitService } from '../services/habit.service'
 import { ScenarioService, SCENE_NAMER_SYSTEM, parseNamerReply } from '../services/scenario.service'
-import type { PreparedItem, SceneItem, EmailSaveInput } from '../../shared/types'
+import type {
+  PreparedItem,
+  SceneItem,
+  EmailSaveInput,
+  ProjectMemoryHistoryInput,
+  ProjectMemoryPatch
+} from '../../shared/types'
 import { HomeLayoutService } from '../services/home-layout.service'
 import { buildPromptContext, type ProjectContextInput } from '../services/ai-summary'
 import {
@@ -52,6 +58,9 @@ import { OpenLogService, type OpenLogKind } from '../services/open-log.service'
 import { WeatherService } from '../services/weather.service'
 import { ClipboardService } from '../services/clipboard.service'
 import { BackupService } from '../services/backup.service'
+import { WorkspaceContextService } from '../services/workspace-context.service'
+import { ProjectMemoryService } from '../services/project-memory.service'
+import { IntelligenceService } from '../services/intelligence.service'
 import {
   HermesAcpService
 } from '../services/hermes-acp.service'
@@ -87,6 +96,8 @@ export function registerIpc(
   const inbox = new InboxService(db)
   const email = new EmailService(db)
   const audit = new AuditLogService(db)
+  const workspace = new WorkspaceContextService(db)
+  const projectMemory = new ProjectMemoryService(db)
   const tasks = new TaskService(db)
   const notes = new NoteService(db, audit)
   const search = new SearchService(db)
@@ -124,6 +135,7 @@ export function registerIpc(
       }
     }
   )
+  const intelligence = new IntelligenceService(db, workspace, projectMemory, scenario, agent)
   const homeLayout = new HomeLayoutService(db)
   const watchedFolders = new WatchedFolderService(db)
   const fsMutation = new FsMutationService(db, audit)
@@ -138,6 +150,31 @@ export function registerIpc(
   }).start()
 
   const notifyFilesChanged = () => opts.getWindow()?.webContents.send(EVENTS.FILE_CHANGED)
+  const notifyWorkspaceChanged = () => {
+    const win = opts.getWindow()
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(EVENTS.WORKSPACE_CHANGED, workspace.getContext())
+      win.webContents.send(EVENTS.INTELLIGENCE_CHANGED, intelligence.get())
+    }
+  }
+  const notifyMemoryChanged = (projectId: string) => {
+    const win = opts.getWindow()
+    if (win && !win.isDestroyed()) win.webContents.send(EVENTS.MEMORY_CHANGED, projectId, projectMemory.get(projectId))
+  }
+  const notifyIntelligenceChanged = () => {
+    const win = opts.getWindow()
+    if (win && !win.isDestroyed()) win.webContents.send(EVENTS.INTELLIGENCE_CHANGED, intelligence.get())
+  }
+  const recordProjectHistory = (projectId: string | null | undefined, action: string, detail: string) => {
+    if (!projectId) return
+    try {
+      projectMemory.record(projectId, { action, detail })
+      notifyMemoryChanged(projectId)
+      notifyIntelligenceChanged()
+    } catch (err) {
+      console.error('[project-memory] record failed:', String(err))
+    }
+  }
 
   const pushHermesEvent = (ev: HermesStreamEvent) => {
     const w = opts.getWindow()
@@ -284,11 +321,20 @@ export function registerIpc(
 
   // ---------- Projects ----------
   ipcMain.handle(IPC.PROJECT_LIST, () => projects.list())
-  ipcMain.handle(IPC.PROJECT_CREATE, (_e, input: { name: string }) => projects.create(input))
-  ipcMain.handle(IPC.PROJECT_UPDATE, (_e, payload: { id: string; patch: ProjectPatch }) =>
-    projects.update(payload.id, payload.patch)
-  )
-  ipcMain.handle(IPC.PROJECT_ARCHIVE, (_e, payload: { id: string }) => projects.archive(payload.id))
+  ipcMain.handle(IPC.PROJECT_CREATE, (_e, input: { name: string }) => {
+    const project = projects.create(input)
+    notifyIntelligenceChanged()
+    return project
+  })
+  ipcMain.handle(IPC.PROJECT_UPDATE, (_e, payload: { id: string; patch: ProjectPatch }) => {
+    const project = projects.update(payload.id, payload.patch)
+    notifyIntelligenceChanged()
+    return project
+  })
+  ipcMain.handle(IPC.PROJECT_ARCHIVE, (_e, payload: { id: string }) => {
+    projects.archive(payload.id)
+    notifyIntelligenceChanged()
+  })
 
   // ---------- File references ----------
   ipcMain.handle(IPC.FILE_LIST_BY_PROJECT, (_e, payload: { projectId: string }) =>
@@ -297,12 +343,17 @@ export function registerIpc(
   ipcMain.handle(IPC.FILE_REFRESH_PROJECT, (_e, payload: { projectId: string }) =>
     files.refreshProjectFiles(payload.projectId)
   )
-  ipcMain.handle(IPC.FILE_ADD_REFERENCE, (_e, payload: { projectId: string; filePath: string }) =>
-    files.addReference(payload.projectId, payload.filePath)
-  )
-  ipcMain.handle(IPC.FILE_REMOVE_FROM_PROJECT, (_e, payload: { projectId: string; fileId: string }) =>
-    files.removeFromProject(payload.projectId, payload.fileId)
-  )
+  ipcMain.handle(IPC.FILE_ADD_REFERENCE, (_e, payload: { projectId: string; filePath: string }) => {
+    const result = files.addReference(payload.projectId, payload.filePath)
+    recordProjectHistory(payload.projectId, '添加文件', result.file.name)
+    return result
+  })
+  ipcMain.handle(IPC.FILE_REMOVE_FROM_PROJECT, (_e, payload: { projectId: string; fileId: string }) => {
+    const file = files.get(payload.fileId)
+    const result = files.removeFromProject(payload.projectId, payload.fileId)
+    recordProjectHistory(payload.projectId, '移除文件', file?.name ?? payload.fileId)
+    return result
+  })
   ipcMain.handle(IPC.FILE_RELOCATE, (_e, payload: { fileId: string; newPath: string }) =>
     files.relocate(payload.fileId, payload.newPath)
   )
@@ -341,11 +392,20 @@ export function registerIpc(
       } catch (err) {
         console.error('[open_log] record file open failed:', String(err))
       }
+      workspace.recordFileOpened(payload.fileId)
+      notifyWorkspaceChanged()
+      for (const memory of projectMemory.recordFileOpened(payload.fileId)) notifyMemoryChanged(memory.projectId)
     }
   })
-  ipcMain.handle(IPC.FILE_OPEN_PATH, (_e, payload: { path: string }) =>
-    shell.openPath(payload.path)
-  )
+  ipcMain.handle(IPC.FILE_OPEN_PATH, async (_e, payload: { path: string }) => {
+    const error = await shell.openPath(payload.path)
+    if (!error) {
+      workspace.recordFileOpenedByPath(payload.path)
+      notifyWorkspaceChanged()
+      for (const memory of projectMemory.recordFileOpenedByPath(payload.path)) notifyMemoryChanged(memory.projectId)
+    }
+    return error
+  })
   ipcMain.handle(IPC.FILE_REVEAL, (_e, payload: { fileId: string }) => files.reveal(payload.fileId))
   ipcMain.handle(IPC.FILE_PICK_FILE, async () => {
     const win = opts.getWindow()
@@ -379,13 +439,32 @@ export function registerIpc(
     tasks.listWithFiles(payload.projectId)
   )
   ipcMain.handle(IPC.TASK_LIST_TODAY, () => tasks.listForToday())
-  ipcMain.handle(IPC.TASK_CREATE, (_e, input: TaskInput) => tasks.create(input))
-  ipcMain.handle(IPC.TASK_UPDATE, (_e, payload: { id: string; patch: TaskPatch }) =>
-    tasks.update(payload.id, payload.patch)
-  )
-  ipcMain.handle(IPC.TASK_COMPLETE, (_e, payload: { id: string }) => tasks.complete(payload.id))
-  ipcMain.handle(IPC.TASK_REOPEN, (_e, payload: { id: string }) => tasks.reopen(payload.id))
-  ipcMain.handle(IPC.TASK_REMOVE, (_e, payload: { id: string }) => tasks.remove(payload.id))
+  ipcMain.handle(IPC.TASK_CREATE, (_e, input: TaskInput) => {
+    const task = tasks.create(input)
+    recordProjectHistory(task.project_id, '创建任务', task.title)
+    return task
+  })
+  ipcMain.handle(IPC.TASK_UPDATE, (_e, payload: { id: string; patch: TaskPatch }) => {
+    const task = tasks.update(payload.id, payload.patch)
+    notifyIntelligenceChanged()
+    return task
+  })
+  ipcMain.handle(IPC.TASK_COMPLETE, (_e, payload: { id: string }) => {
+    const task = tasks.complete(payload.id)
+    workspace.recordTaskCompleted(payload.id)
+    notifyWorkspaceChanged()
+    recordProjectHistory(task.project_id, '完成任务', task.title)
+    return task
+  })
+  ipcMain.handle(IPC.TASK_REOPEN, (_e, payload: { id: string }) => {
+    const task = tasks.reopen(payload.id)
+    notifyIntelligenceChanged()
+    return task
+  })
+  ipcMain.handle(IPC.TASK_REMOVE, (_e, payload: { id: string }) => {
+    tasks.remove(payload.id)
+    notifyIntelligenceChanged()
+  })
   ipcMain.handle(IPC.TASK_ADD_FILE, (_e, payload: { taskId: string; fileId: string }) =>
     tasks.addFile(payload.taskId, payload.fileId)
   )
@@ -397,9 +476,11 @@ export function registerIpc(
   ipcMain.handle(IPC.NOTE_LIST_BY_PROJECT, (_e, payload: { projectId: string }) =>
     notes.listByProject(payload.projectId)
   )
-  ipcMain.handle(IPC.NOTE_ADD, (_e, payload: { path: string; projectId?: string | null }) =>
-    notes.add(payload.path, payload.projectId)
-  )
+  ipcMain.handle(IPC.NOTE_ADD, (_e, payload: { path: string; projectId?: string | null }) => {
+    const note = notes.add(payload.path, payload.projectId)
+    recordProjectHistory(note.project_id, '添加笔记', note.title ?? note.path)
+    return note
+  })
   ipcMain.handle(IPC.NOTE_CREATE, async (_e, payload: { projectId?: string | null }) => {
     const win = opts.getWindow()
     if (!win) return null
@@ -410,12 +491,16 @@ export function registerIpc(
     })
     if (result.canceled || !result.filePath) return null
     writeFileSync(result.filePath, '# 新笔记\n\n', 'utf-8')
-    return notes.add(result.filePath, payload.projectId)
+    const note = notes.add(result.filePath, payload.projectId)
+    recordProjectHistory(note.project_id, '添加笔记', note.title ?? note.path)
+    return note
   })
   ipcMain.handle(IPC.NOTE_GET, (_e, payload: { id: string }) => notes.getWithContent(payload.id))
-  ipcMain.handle(IPC.NOTE_SAVE, (_e, payload: { id: string; content: string }) =>
-    notes.save(payload.id, payload.content)
-  )
+  ipcMain.handle(IPC.NOTE_SAVE, (_e, payload: { id: string; content: string }) => {
+    const saved = notes.save(payload.id, payload.content)
+    recordProjectHistory(saved.project_id, '保存笔记', saved.title ?? saved.path)
+    return saved
+  })
   ipcMain.handle(IPC.NOTE_REMOVE, (_e, payload: { id: string }) => notes.remove(payload.id))
   ipcMain.handle(IPC.NOTE_BACKLINKS, (_e, payload: { id: string }) => notes.backlinks(payload.id))
 
@@ -541,6 +626,7 @@ export function registerIpc(
       .slice(0, 5)
     const noteRows = notes.listByProject(projectId)
     const fileRows = files.listByProject(projectId)
+    const memory = projectMemory.get(projectId)
     return {
       name: project.name,
       status: project.status,
@@ -549,7 +635,11 @@ export function registerIpc(
       doneTasks: projectTasks.length - open.length,
       notes: noteRows.length,
       files: fileRows.length,
-      dueSoon
+      dueSoon,
+      memory,
+      importantFileNames: fileRows
+        .filter((file) => memory.importantFiles.includes(file.id))
+        .map((file) => file.name)
     }
   }
 
@@ -560,6 +650,8 @@ export function registerIpc(
   })
   ipcMain.handle(IPC.AI_PREPARE, async () => prepare.prepare())
   ipcMain.handle(IPC.AI_HABIT, () => habit.suggest())
+  ipcMain.handle(IPC.INTELLIGENCE_GET, () => intelligence.get())
+  ipcMain.handle(IPC.INTELLIGENCE_REFRESH, () => intelligence.refresh())
   ipcMain.handle(IPC.AI_PREPARE_OPEN, async (_e, item: PreparedItem) => {
     try {
       openLog.record({ kind: item.kind as OpenLogKind, name: item.name, path: item.path, source: 'box' })
@@ -620,7 +712,29 @@ export function registerIpc(
   ipcMain.handle(IPC.SCENARIO_DISMISS_CANDIDATE, (_e, payload: { id: string; permanent?: boolean }) =>
     scenario.dismissCandidate(payload.id, payload.permanent)
   )
-  ipcMain.handle(IPC.SCENARIO_APPLY, (_e, payload: { id: string }) => scenario.apply(payload.id))
+  ipcMain.handle(IPC.SCENARIO_APPLY, async (_e, payload: { id: string }) => {
+    const result = await scenario.apply(payload.id)
+    const mode = scenario.list().find((item) => item.id === payload.id)
+    if (mode?.project) {
+      try {
+        workspace.setCurrentProject(mode.project)
+      } catch (err) {
+        console.warn('[work-mode] project restore skipped:', String(err))
+      }
+    }
+    if (mode?.tasks[0]) {
+      try {
+        workspace.setFocusTask(mode.tasks[0])
+      } catch (err) {
+        console.warn('[work-mode] task restore skipped:', String(err))
+      }
+    }
+    if (mode) {
+      workspace.recordSceneStarted(payload.id)
+      notifyWorkspaceChanged()
+    }
+    return result
+  })
   ipcMain.handle(IPC.SCENARIO_APPLY_ITEMS, (_e, payload: { items: SceneItem[] }) =>
     scenario.applyItems(payload.items)
   )
@@ -687,6 +801,42 @@ export function registerIpc(
     }
   })
   ipcMain.handle(IPC.SETTINGS_GET_ALL, () => settings.getAll())
+
+  // ---------- Workspace context ----------
+  ipcMain.handle(IPC.WORKSPACE_GET_CONTEXT, () => workspace.getContext())
+  ipcMain.handle(IPC.WORKSPACE_SET_PROJECT, (_e, projectId: string | null) => {
+    const context = workspace.setCurrentProject(projectId)
+    notifyWorkspaceChanged()
+    if (context.currentProject) recordProjectHistory(context.currentProject.id, '打开项目', context.currentProject.name)
+    return context
+  })
+  ipcMain.handle(IPC.WORKSPACE_SET_SCENE, (_e, sceneId: string | null) => {
+    const context = workspace.setCurrentScene(sceneId)
+    notifyWorkspaceChanged()
+    return context
+  })
+  ipcMain.handle(IPC.WORKSPACE_SET_FOCUS_TASK, (_e, taskId: string | null) => {
+    const context = workspace.setFocusTask(taskId)
+    notifyWorkspaceChanged()
+    return context
+  })
+
+  // ---------- Project Memory ----------
+  ipcMain.handle(IPC.MEMORY_GET, (_e, payload: { projectId: string }) =>
+    projectMemory.get(payload.projectId)
+  )
+  ipcMain.handle(IPC.MEMORY_UPDATE, (_e, payload: { projectId: string; patch: ProjectMemoryPatch }) => {
+    const memory = projectMemory.update(payload.projectId, payload.patch)
+    notifyMemoryChanged(payload.projectId)
+    notifyIntelligenceChanged()
+    return memory
+  })
+  ipcMain.handle(IPC.MEMORY_RECORD, (_e, payload: { projectId: string; input: ProjectMemoryHistoryInput }) => {
+    const memory = projectMemory.record(payload.projectId, payload.input)
+    notifyMemoryChanged(payload.projectId)
+    notifyIntelligenceChanged()
+    return memory
+  })
 
   // ---------- Window ----------
   ipcMain.handle(IPC.WINDOW_MINIMIZE, () => opts.getWindow()?.minimize())
