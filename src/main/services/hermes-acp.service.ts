@@ -3,6 +3,7 @@ import { shell } from 'electron'
 import readline from 'node:readline'
 import path from 'node:path'
 import fs from 'node:fs'
+import os from 'node:os'
 import type { AgentModelInfo, AgentModelList, HermesStreamEvent } from '../../shared/types'
 
 /**
@@ -16,8 +17,12 @@ import type { AgentModelInfo, AgentModelList, HermesStreamEvent } from '../../sh
  * isolated by UI conversation id so switching threads never leaks context.
  */
 
-export const DEFAULT_HERMES_ACP =
-  'C:\\Users\\16001\\AppData\\Local\\hermes\\bin\\hermes-acp.exe'
+export const DEFAULT_HERMES_ACP = path.join(
+  process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'),
+  'hermes',
+  'bin',
+  'hermes-acp.exe'
+)
 
 /** Best-effort text extraction from one message (or whole result) of a prompt
  *  completion. Tolerates string content, arrays, structured `{type:'text'}`,
@@ -213,11 +218,24 @@ export class HermesAcpService {
   }
 
   private resolveExe(): string | null {
-    const fromEnv = process.env.HERMES_ACP_EXE
-    if (fromEnv) return fromEnv
-    const bundled = path.join(appRoot(), 'bin', 'hermes-acp.exe')
-    if (fs.existsSync(bundled)) return bundled
-    return DEFAULT_HERMES_ACP
+    const candidates = [
+      process.env.HERMES_ACP_EXE,
+      path.join(appRoot(), 'bin', 'hermes-acp.exe'),
+      DEFAULT_HERMES_ACP,
+      path.join(os.homedir(), '.hermes', 'bin', 'hermes-acp.exe'),
+      path.join(os.homedir(), '.local', 'bin', 'hermes-acp.exe')
+    ].filter((value): value is string => Boolean(value?.trim()))
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) return candidate
+    }
+    // A package installed on PATH is valid too. Avoid spawning a missing path
+    // so Windows reports a useful “not installed” state instead of raw ENOENT.
+    const pathDirs = (process.env.PATH ?? '').split(path.delimiter).filter(Boolean)
+    for (const dir of pathDirs) {
+      const candidate = path.join(dir, 'hermes-acp.exe')
+      if (fs.existsSync(candidate)) return candidate
+    }
+    return null
   }
 
   /**
@@ -831,7 +849,8 @@ function appRoot(): string {
 
 function workspacePath(): string {
   const w = process.env.WORKDECK_WORKSPACE
-  return w || appRoot()
+  const candidate = w?.trim() || appRoot()
+  return fs.existsSync(candidate) ? candidate : appRoot()
 }
 
 /** Read a text file the agent asked for, returning '' on any failure. */

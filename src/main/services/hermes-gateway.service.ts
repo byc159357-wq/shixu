@@ -177,8 +177,17 @@ export class HermesGatewayService {
       await this.ensureDirect()
       const payload = await this.rpc<any>('model.options', { explicit_only: true }, 60_000)
       return parseGatewayModels(payload)
-    } catch {
-      return this.fallback.listModels()
+    } catch (gatewayError) {
+      try {
+        return await this.fallback.listModels()
+      } catch (fallbackError) {
+        const detail = String((fallbackError as Error)?.message ?? fallbackError)
+        if (/未找到|未配置|ENOENT|not found/i.test(detail)) {
+          return { models: [], currentModelId: null }
+        }
+        const gatewayDetail = String((gatewayError as Error)?.message ?? gatewayError)
+        throw new Error(`Hermes 模型服务不可用：${gatewayDetail}；ACP：${detail}`)
+      }
     }
   }
 
@@ -427,5 +436,10 @@ async function discoverGatewayUrl(): Promise<string> {
 }
 
 function workspacePath(): string {
-  return process.env.WORKDECK_WORKSPACE || process.cwd()
+  const candidate = process.env.WORKDECK_WORKSPACE?.trim() || process.cwd()
+  try {
+    return fs.existsSync(candidate) ? candidate : process.cwd()
+  } catch {
+    return process.cwd()
+  }
 }

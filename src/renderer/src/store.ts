@@ -489,7 +489,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ hermesModels: models, hermesModelId: selected, hermesModelStatus: models.length ? 'success' : 'empty', hermesModelError: null })
     } catch (error) {
       if (request !== hermesModelRequest) return
-      set({ hermesModelStatus: 'error', hermesModelError: String((error as Error)?.message ?? error), hermesModels: [] })
+      const raw = String((error as Error)?.message ?? error)
+      const message = raw.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/i, '').trim()
+      set({ hermesModelStatus: 'error', hermesModelError: message || '模型服务不可用', hermesModels: [] })
     }
   },
 
