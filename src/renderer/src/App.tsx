@@ -219,9 +219,21 @@ function Dock({ onOpenHermes }: { onOpenHermes: () => void }) {
 }
 
 function HermesAssistant({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const panelRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (target instanceof Node && panelRef.current && !panelRef.current.contains(target)) onClose()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open, onClose])
+
   if (!open) return null
   return (
-    <aside className="hermes-assistant" aria-label="Hermes AI 助手">
+    <aside ref={panelRef} className="hermes-assistant" aria-label="Hermes AI 助手">
       <div className="hermes-assistant-head">
         <div>
           <span className="hermes-assistant-eyebrow">INTELLIGENCE</span>
