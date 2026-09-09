@@ -743,7 +743,7 @@ export function AIPage() {
             <div className="ai-composer-foot">
               <Select value={toolId} onChange={pickTool} options={toolOptions} className="ai-select" />
               <Select
-                value={modelId}
+                value={modelStatus === 'success' ? modelId : ''}
                 onChange={pickModel}
                 options={modelOptions.length ? modelOptions : [{ value: '', label: modelPlaceholder, disabled: true }]}
                 className="ai-select ai-select-model"

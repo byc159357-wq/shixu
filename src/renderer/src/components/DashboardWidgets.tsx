@@ -1349,7 +1349,7 @@ export function AIWidget() {
         <select
           className="input home-ai-model-select"
           aria-label="选择 AI 模型"
-          value={selectedModel}
+          value={modelStatus === 'success' ? selectedModel : ''}
           disabled={busy || modelStatus !== 'success'}
           onChange={(event) => {
             const value = event.target.value
