@@ -438,7 +438,8 @@ async function discoverGatewayUrl(): Promise<string> {
 function workspacePath(): string {
   const candidate = process.env.WORKDECK_WORKSPACE?.trim() || process.cwd()
   try {
-    return fs.existsSync(candidate) ? candidate : process.cwd()
+    if (!/\.asar(?:[\\/]|$)/i.test(candidate) && fs.statSync(candidate).isDirectory()) return candidate
+    return process.cwd()
   } catch {
     return process.cwd()
   }

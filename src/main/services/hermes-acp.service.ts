@@ -849,8 +849,19 @@ function appRoot(): string {
 
 function workspacePath(): string {
   const w = process.env.WORKDECK_WORKSPACE
-  const candidate = w?.trim() || appRoot()
-  return fs.existsSync(candidate) ? candidate : appRoot()
+  const candidates = [w?.trim(), process.cwd(), path.dirname(process.execPath), os.homedir()]
+    .filter((value): value is string => Boolean(value))
+  for (const candidate of candidates) {
+    // `app.asar` is readable through Electron's virtual filesystem but cannot
+    // be used as a native child-process cwd on Windows.
+    if (/\.asar(?:[\\/]|$)/i.test(candidate)) continue
+    try {
+      if (fs.statSync(candidate).isDirectory()) return candidate
+    } catch {
+      /* try the next real directory */
+    }
+  }
+  return os.homedir()
 }
 
 /** Read a text file the agent asked for, returning '' on any failure. */
