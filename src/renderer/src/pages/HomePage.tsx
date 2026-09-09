@@ -139,14 +139,23 @@ function TodayCenter() {
 
 function defaultLayout(): LayoutItem[] {
   return [
-    { id: newId(), kind: 'ai', x: 6, y: 6, w: 3, h: 3 },
-    { id: newId(), kind: 'today', x: 0, y: 0, w: 4, h: 3 },
-    { id: newId(), kind: 'clock', x: 4, y: 0, w: 2, h: 2 },
-    { id: newId(), kind: 'tasks', x: 6, y: 0, w: 6, h: 2 },
-    { id: newId(), kind: 'inbox', x: 0, y: 3, w: 4, h: 2 },
-    { id: newId(), kind: 'continue', x: 4, y: 3, w: 6, h: 3 },
-    { id: newId(), kind: 'recent-files', x: 0, y: 6, w: 6, h: 2 }
+    { id: newId(), kind: 'current-work', x: 0, y: 0, w: 8, h: 4 },
+    { id: newId(), kind: 'hermes', x: 8, y: 0, w: 4, h: 6 },
+    { id: newId(), kind: 'recent-files', x: 0, y: 4, w: 4, h: 3 },
+    { id: newId(), kind: 'work-modes', x: 4, y: 4, w: 4, h: 3 },
+    { id: newId(), kind: 'recent-apps', x: 0, y: 7, w: 4, h: 3 },
+    { id: newId(), kind: 'recent-assets', x: 4, y: 7, w: 4, h: 3 },
+    { id: newId(), kind: 'work-directories', x: 8, y: 6, w: 4, h: 3 },
+    { id: newId(), kind: 'weather', x: 8, y: 9, w: 4, h: 2, meta: { compact: true } }
   ]
+}
+
+/** Existing installs may still have the v0.4 dashboard's untouched default.
+ * Upgrade that one known shape so the redesign is visible immediately, while
+ * preserving any layout the user has actually edited. */
+function isLegacyWorkspaceDefault(items: LayoutItem[]): boolean {
+  const kinds = items.map((item) => item.kind).sort().join(',')
+  return kinds === ['ai', 'clock', 'continue', 'inbox', 'recent-files', 'tasks', 'today'].sort().join(',')
 }
 
 export function WorkspacePage() {
@@ -167,6 +176,8 @@ export function WorkspacePage() {
   const loadProjects = useAppStore((s) => s.loadProjects)
   const refresh = useAppStore((s) => s.refreshAfterFilesChange)
   const pushToast = useAppStore((s) => s.pushToast)
+  const workspaceContext = useAppStore((s) => s.workspaceContext)
+  const migratedLegacy = useRef(false)
 
   // Proactive habit prediction on the home landing — loads on its own and
   // re-runs after each open so suggestions track the user's moving context.
@@ -242,6 +253,12 @@ export function WorkspacePage() {
     void refresh()
   }, [fallbackLayout, loadHomeLayout, loadProjects, refresh])
 
+  useEffect(() => {
+    if (migratedLegacy.current || !homeLayoutLoaded || !homeLayout || !isLegacyWorkspaceDefault(homeLayout.items)) return
+    migratedLegacy.current = true
+    void resetHomeLayout(fallbackLayout)
+  }, [fallbackLayout, homeLayout, homeLayoutLoaded, resetHomeLayout])
+
   const handleChange = useCallback(
     (next: LayoutItem) => {
       setHomeLayoutItems(items.map((it) => (it.id === next.id ? next : it)))
@@ -281,15 +298,23 @@ export function WorkspacePage() {
   )
 
   return (
-    <main className="workspace" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+    <main className="workspace workspace-page" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
       {/* Subtitle + add action on one line. The section title now lives in the
           top-left corner (SectionCorner), so the hero no longer draws a <h1>.
           .sub keeps its default bottom margin here so the dock (measured at the
           subtitle's bottom + gap) sticks to the cards at the same Y as everywhere
           else — and the roomier workspace is the whole point. */}
       <div className="home-hero" style={{ flexShrink: 0, position: 'relative' }}>
-        <div className="sub" style={{ paddingRight: '9rem' }}>
-          Workspace · 自由布局，拖动卡片调整位置，右下角调整大小
+        <div className="workspace-heading" style={{ paddingRight: '9rem' }}>
+          <div>
+            <div className="workspace-kicker">PERSONAL SPACE</div>
+            <h1>Workspace</h1>
+            <p className="workspace-status-line">
+              {workspaceContext?.currentProject ? `正在进行 · ${workspaceContext.currentProject.name}` : '准备好开始今天的工作'}
+              {workspaceContext?.currentScene ? ` · ${workspaceContext.currentScene.name}` : ''}
+            </p>
+          </div>
+          <span className="workspace-layout-hint">自由布局 · 拖动卡片调整位置</span>
         </div>
         <div className="home-edit-actions" style={{ position: 'absolute', top: 0, right: 0 }}>
           {homeLayoutMode === 'edit' ? <>

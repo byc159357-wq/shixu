@@ -238,6 +238,8 @@ function defaultTitle(kind: LayoutItem['kind']): string {
   switch (kind) {
     case 'ai':
       return 'AI 助手'
+    case 'hermes':
+      return 'Hermes'
     case 'today':
       return '今日'
     case 'clock':
@@ -246,10 +248,20 @@ function defaultTitle(kind: LayoutItem['kind']): string {
       return '任务速览'
     case 'continue':
       return '继续上次'
+    case 'current-work':
+      return 'Current Work'
     case 'inbox':
       return '收件箱'
     case 'recent-files':
       return '最近文件'
+    case 'recent-apps':
+      return '最近应用'
+    case 'recent-assets':
+      return 'Recent Assets'
+    case 'work-modes':
+      return 'Work Modes'
+    case 'work-directories':
+      return '工作目录'
     case 'apps':
       return '软件启动台'
     case 'images':

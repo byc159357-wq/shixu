@@ -897,6 +897,18 @@ export function registerIpc(
 
   // ---------- Five auto-syncing boxes (软件/图片/文件/文件夹/视频) ----------
   ipcMain.handle(IPC.BOXES_LIST, (_e, payload: { kind: BoxKind }) => boxes.list(payload.kind))
+  ipcMain.handle(IPC.BOXES_RECENT, (_e, payload: { kind: BoxKind; limit?: number }) =>
+    (() => {
+      const seen = new Set<string>()
+      return openLog.recent(Math.min(Math.max(payload.limit ?? 8, 1) * 4, 120))
+        .filter((row) => row.kind === payload.kind && !seen.has(row.path))
+        .map((row) => {
+          seen.add(row.path)
+          return { kind: row.kind, name: row.name, path: row.path, openedAt: row.opened_at }
+        })
+        .slice(0, Math.min(Math.max(payload.limit ?? 8, 1), 30))
+    })()
+  )
   ipcMain.handle(
     IPC.BOXES_LAUNCH,
     async (_e, payload: { path: string; kind?: BoxKind; name?: string }) => {

@@ -167,6 +167,7 @@ const api: WorkdeckApi = {
   },
   boxes: {
     list: (kind) => ipcRenderer.invoke(IPC.BOXES_LIST, { kind }),
+    recent: (kind, limit) => ipcRenderer.invoke(IPC.BOXES_RECENT, { kind, limit }),
     launch: (path, kind, name) =>
       ipcRenderer.invoke(IPC.BOXES_LAUNCH, { path, kind, name }),
     addPaths: (paths, kind) => ipcRenderer.invoke(IPC.BOXES_ADD_PATHS, { paths, kind }),

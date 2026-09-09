@@ -132,6 +132,7 @@ export const IPC = {
   MEMORY_UPDATE: 'memory:update',
   MEMORY_RECORD: 'memory:record',
   BOXES_LIST: 'boxes:list',
+  BOXES_RECENT: 'boxes:recent',
   BOXES_LAUNCH: 'boxes:launch',
   BOXES_ADD_PATHS: 'boxes:addPaths',
   BOXES_REMOVE: 'boxes:remove',

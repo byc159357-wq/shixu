@@ -4398,6 +4398,53 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
 .today-intelligence-status span { color: var(--text-1); font-size: var(--fs-caption); font-weight: 650; }
 .today-intelligence-status small { margin-top: 0.2rem; color: var(--text-3); font-size: var(--fs-micro); }
 
+/* Workspace v0.5: a calm personal operating surface. The canvas remains a
+ * free-form editor, while the default template uses scale and whitespace to
+ * establish a clear primary/secondary hierarchy. */
+.workspace-page { gap: 0; }
+.workspace-page .home-hero { margin-bottom: 1.1rem; }
+.workspace-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; }
+.workspace-heading h1 { margin: 0.25rem 0 0.25rem; font-size: clamp(1.65rem, 2.5vw, 2.25rem); letter-spacing: -0.04em; }
+.workspace-heading .workspace-kicker { margin-bottom: 0.2rem; }
+.workspace-kicker { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text-3); font-size: var(--fs-micro); font-weight: 750; letter-spacing: 0.14em; text-transform: uppercase; }
+.workspace-status-line { margin: 0; color: var(--text-2); font-size: var(--fs-body-sm); }
+.workspace-layout-hint { align-self: flex-end; color: var(--text-3); font-size: var(--fs-caption); }
+.workspace-page .habit-strip { margin-top: 0.1rem; border: 0 !important; background: color-mix(in srgb, var(--accent-soft) 64%, transparent) !important; }
+.workspace-page .card.lg-card { border-color: color-mix(in srgb, var(--border) 72%, transparent); background: color-mix(in srgb, var(--surface-1) 94%, transparent); box-shadow: 0 10px 30px color-mix(in srgb, var(--shadow-color, #000) 7%, transparent); }
+.workspace-page .dashboard-card-shell:hover .card.lg-card { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color, #000) 10%, transparent); }
+.workspace-current-work { display: flex; align-items: stretch; justify-content: space-between; gap: 1.5rem; height: 100%; min-height: 0; padding: clamp(0.25rem, 1vw, 0.75rem) 0; }
+.workspace-current-work-main { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 0.45rem; }
+.workspace-current-work-main > strong { overflow: hidden; color: var(--text-1); font-size: clamp(1.45rem, 3vw, 2.4rem); letter-spacing: -0.045em; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-muted { overflow: hidden; color: var(--text-2); font-size: var(--fs-body-sm); text-overflow: ellipsis; white-space: nowrap; }
+.workspace-current-work-side { display: flex; min-width: 9rem; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 0.75rem; }
+.workspace-mode-pill { display: inline-flex; align-items: center; gap: 0.35rem; max-width: 12rem; padding: 0.35rem 0.55rem; overflow: hidden; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: var(--fs-caption); white-space: nowrap; text-overflow: ellipsis; }
+.workspace-resume-button { display: inline-flex; align-items: center; gap: 0.35rem; }
+.workspace-hermes { display: flex; height: 100%; min-height: 0; flex-direction: column; gap: 0.75rem; }
+.workspace-hermes-head { display: flex; align-items: center; justify-content: space-between; }
+.workspace-icon-link { display: inline-grid; width: 1.75rem; height: 1.75rem; padding: 0; place-items: center; border: 0; border-radius: 0.5rem; background: transparent; color: var(--text-3); cursor: pointer; }
+.workspace-icon-link:hover { background: var(--hover-bg); color: var(--accent); }
+.workspace-hermes-headline { color: var(--text-1); font-size: 1.05rem; line-height: 1.35; }
+.workspace-hermes p { margin: 0; color: var(--text-2); font-size: var(--fs-body-sm); line-height: 1.6; }
+.workspace-hermes-suggestions { display: flex; margin-top: auto; flex-direction: column; gap: 0.35rem; }
+.workspace-hermes-suggestions > button, .workspace-list-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; width: 100%; min-width: 0; padding: 0.55rem 0.6rem; border: 1px solid transparent; border-radius: 0.6rem; background: transparent; color: var(--text-1); text-align: left; cursor: pointer; }
+.workspace-hermes-suggestions > button:hover, .workspace-list-row:hover { border-color: var(--border); background: var(--hover-bg); }
+.workspace-hermes-suggestions > button > span, .workspace-list-row > span { display: flex; min-width: 0; flex-direction: column; gap: 0.18rem; }
+.workspace-hermes-suggestions strong, .workspace-list-row strong { overflow: hidden; font-size: var(--fs-caption); text-overflow: ellipsis; white-space: nowrap; }
+.workspace-hermes-suggestions small, .workspace-list-row small { overflow: hidden; color: var(--text-3); font-size: var(--fs-micro); text-overflow: ellipsis; white-space: nowrap; }
+.workspace-list { display: flex; height: 100%; min-height: 0; flex-direction: column; gap: 0.2rem; overflow: auto; }
+.workspace-list-row { flex: 0 0 auto; }
+.workspace-empty { margin: auto 0; color: var(--text-3); font-size: var(--fs-caption); }
+.workspace-weather-compact { display: flex; height: 100%; align-items: center; justify-content: space-between; gap: 1rem; }
+.workspace-weather-compact > div { display: flex; min-width: 0; flex-direction: column; gap: 0.28rem; }
+.workspace-weather-compact strong { color: var(--text-1); font-size: 1.7rem; letter-spacing: -0.04em; }
+.workspace-weather-compact .workspace-muted { font-size: var(--fs-caption); }
+@media (max-width: 760px) {
+  .workspace-heading { align-items: flex-start; flex-direction: column; gap: 0.6rem; }
+  .workspace-layout-hint { align-self: flex-start; }
+  .workspace-current-work { align-items: flex-start; flex-direction: column; }
+  .workspace-current-work-side { width: 100%; min-width: 0; flex-direction: row; align-items: center; }
+}
+
 /* ============ v0.4 Project Space ============ */
 .project-space .page-head { gap: 0.85rem !important; }
 .project-space .page-head .project-dot { width: 0.75rem !important; height: 0.75rem !important; }

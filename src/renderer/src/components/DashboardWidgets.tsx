@@ -23,11 +23,12 @@ import {
   VideoCamera,
   FileText,
   Sparkle,
-  PaperPlaneTilt
+  PaperPlaneTilt,
+  ArrowUpRight
 } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
-import type { AgentModelList, HermesStreamEvent, LayoutItem, LibraryFile, MailDetailResult, MailPreview, SystemStats, WeatherNow, WidgetKind } from '../../../shared/types'
+import type { AgentModelList, HermesStreamEvent, LayoutItem, LibraryFile, MailDetailResult, MailPreview, RecentOpenItem, SystemStats, WeatherNow, WidgetKind, WorkMode } from '../../../shared/types'
 import {
   SoftwareWidget,
   ImagesWidget,
@@ -189,6 +190,178 @@ export function ContinueWidget() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/** The primary Workspace surface. It is deliberately driven by the durable
+ * WorkspaceContext instead of a generic project list, so reopening the app
+ * takes the user back to the work they actually left. */
+export function CurrentWorkWidget() {
+  const context = useAppStore((s) => s.workspaceContext)
+  const projects = useAppStore((s) => s.projects)
+  const currentProjectId = useAppStore((s) => s.currentProjectId)
+  const selectProject = useAppStore((s) => s.selectProject)
+  const setFocusTask = useAppStore((s) => s.setFocusTask)
+  const setModule = useAppStore((s) => s.setModule)
+  const project = context?.currentProject ?? projects.find((p) => p.id === currentProjectId) ?? null
+  const task = context?.focusTask
+
+  const resume = () => {
+    if (project) {
+      void selectProject(project.id)
+      if (task) void setFocusTask(task.id)
+    } else {
+      setModule('projects')
+    }
+  }
+
+  return (
+    <div className="workspace-current-work">
+      <div className="workspace-current-work-main">
+        <span className="workspace-kicker">正在进行</span>
+        <strong>{project?.name ?? '还没有进行中的项目'}</strong>
+        <span className="workspace-muted">
+          {task?.title ?? context?.currentScene?.name ?? (project?.description || '从项目开始，建立你的工作上下文')}
+        </span>
+        {context?.lastActiveTime && <span className="workspace-muted">上次活动 · {relTime(context.lastActiveTime)}</span>}
+      </div>
+      <div className="workspace-current-work-side">
+        {context?.currentScene && <span className="workspace-mode-pill"><Play size={12} weight="fill" /> {context.currentScene.name}</span>}
+        <button className="btn btn-primary btn-sm workspace-resume-button" onClick={resume}>
+          继续工作 <ArrowUpRight size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Contextual Hermes summary for Workspace. This stays action-oriented and
+ * uses the same local IntelligenceSnapshot shown by Today, rather than
+ * becoming a second independent chat surface. */
+export function WorkspaceHermesWidget() {
+  const intelligence = useAppStore((s) => s.intelligence)
+  const refreshIntelligence = useAppStore((s) => s.refreshIntelligence)
+  const selectProject = useAppStore((s) => s.selectProject)
+  const setFocusTask = useAppStore((s) => s.setFocusTask)
+  const pushToast = useAppStore((s) => s.pushToast)
+
+  const runSuggestion = async (suggestion: { projectId?: string | null; workModeId?: string | null; taskId?: string | null }) => {
+    if (suggestion.workModeId) {
+      const result = await window.workdeck.scenario.apply(suggestion.workModeId)
+      pushToast(result.ok ? 'success' : 'error', result.ok ? '已恢复最近工作模式' : `部分未打开：${result.errors.join('；')}`)
+      return
+    }
+    if (suggestion.projectId) await selectProject(suggestion.projectId)
+    if (suggestion.taskId) await setFocusTask(suggestion.taskId)
+  }
+
+  return (
+    <div className="workspace-hermes">
+      <div className="workspace-hermes-head">
+        <span className="workspace-kicker"><Sparkle size={13} /> Hermes</span>
+        <button className="workspace-icon-link" onClick={() => void refreshIntelligence()} title="刷新工作分析"><ArrowUpRight size={14} /></button>
+      </div>
+      {intelligence ? (
+        <>
+          <strong className="workspace-hermes-headline">{intelligence.headline}</strong>
+          <p>{intelligence.body}</p>
+          <div className="workspace-hermes-suggestions">
+            {intelligence.suggestions.slice(0, 3).map((suggestion) => (
+              <button key={suggestion.id} onClick={() => void runSuggestion(suggestion)}>
+                <span><strong>{suggestion.title}</strong><small>{suggestion.detail}</small></span>
+                <ArrowUpRight size={13} />
+              </button>
+            ))}
+          </div>
+        </>
+      ) : <p>正在读取当前工作状态…</p>}
+    </div>
+  )
+}
+
+export function WorkModesWidget() {
+  const [modes, setModes] = useState<WorkMode[]>([])
+  const pushToast = useAppStore((s) => s.pushToast)
+  useEffect(() => {
+    let alive = true
+    void window.workdeck.scenario.list().then((next: WorkMode[]) => { if (alive) setModes(next.slice().sort((a: WorkMode, b: WorkMode) => new Date(b.lastUsed ?? 0).getTime() - new Date(a.lastUsed ?? 0).getTime()).slice(0, 4)) })
+    return () => { alive = false }
+  }, [])
+  return (
+    <div className="workspace-list">
+      {modes.length ? modes.map((mode) => (
+        <button className="workspace-list-row" key={mode.id} onClick={() => void window.workdeck.scenario.apply(mode.id).then((result: { ok: boolean; errors: string[] }) => pushToast(result.ok ? 'success' : 'error', result.ok ? `已进入「${mode.name}」` : `部分未打开：${result.errors.join('；')}`))}>
+          <span><strong>{mode.name}</strong><small>{mode.usageCount} 次使用 · {mode.apps.length + mode.folders.length} 个入口</small></span>
+          <ArrowUpRight size={13} />
+        </button>
+      )) : <span className="workspace-empty">还没有保存的工作模式</span>}
+    </div>
+  )
+}
+
+export function RecentAppsWidget() {
+  const [items, setItems] = useState<RecentOpenItem[]>([])
+  const [fallback, setFallback] = useState<Array<{ name: string; path: string }>>([])
+  const pushToast = useAppStore((s) => s.pushToast)
+  useEffect(() => {
+    let alive = true
+    void Promise.all([window.workdeck.boxes.recent('apps', 8), window.workdeck.boxes.list('apps')]).then(([recent, all]: [RecentOpenItem[], Array<{ name: string; path: string }>]) => {
+      if (!alive) return
+      setItems(recent)
+      setFallback(all.slice(0, 8))
+    })
+    return () => { alive = false }
+  }, [])
+  const rows = items.length ? items : fallback
+  return (
+    <div className="workspace-list workspace-app-list">
+      {rows.length ? rows.slice(0, 6).map((item) => (
+        <button className="workspace-list-row" key={`${item.path}-${item.name}`} onClick={() => void window.workdeck.boxes.launch(item.path, 'apps', item.name).then((result: { ok: boolean; error?: string }) => { if (!result.ok) pushToast('error', result.error ?? '启动失败') })}>
+          <span><strong>{item.name.replace(/\.lnk$/i, '')}</strong><small>{'openedAt' in item && typeof item.openedAt === 'string' ? relTime(item.openedAt) : '可启动应用'}</small></span>
+          <ArrowUpRight size={13} />
+        </button>
+      )) : <span className="workspace-empty">还没有最近应用</span>}
+    </div>
+  )
+}
+
+export function RecentAssetsWidget() {
+  const [files, setFiles] = useState<LibraryFile[]>([])
+  const openFile = useAppStore((s) => s.openFile)
+  useEffect(() => {
+    let alive = true
+    void window.workdeck.library.list({ type: 'image', sort: 'recent', limit: 8 }).then((next: LibraryFile[]) => { if (alive) setFiles(next) })
+    return () => { alive = false }
+  }, [])
+  return (
+    <div className="workspace-list workspace-assets-list">
+      {files.length ? files.slice(0, 6).map((file) => (
+        <button className="workspace-list-row" key={file.id} onClick={() => void openFile(file.id)}>
+          <span><strong>{file.name}</strong><small>{file.lastOpenedAt ? relTime(file.lastOpenedAt) : '最近素材'}</small></span>
+          <ArrowUpRight size={13} />
+        </button>
+      )) : <span className="workspace-empty">还没有最近素材</span>}
+    </div>
+  )
+}
+
+export function WorkDirectoriesWidget() {
+  const [folders, setFolders] = useState<Array<{ name: string; path: string }>>([])
+  const pushToast = useAppStore((s) => s.pushToast)
+  useEffect(() => {
+    let alive = true
+    void window.workdeck.boxes.list('folders').then((next: Array<{ name: string; path: string }>) => { if (alive) setFolders(next.slice(0, 6)) })
+    return () => { alive = false }
+  }, [])
+  return (
+    <div className="workspace-list">
+      {folders.length ? folders.slice(0, 5).map((folder) => (
+        <button className="workspace-list-row" key={folder.path} onClick={() => void window.workdeck.boxes.launch(folder.path, 'folders', folder.name).then((result: { ok: boolean; error?: string }) => { if (!result.ok) pushToast('error', result.error ?? '打开目录失败') })}>
+          <span><strong>{folder.name}</strong><small>工作目录</small></span>
+          <FolderOpen size={14} />
+        </button>
+      )) : <span className="workspace-empty">还没有工作目录</span>}
     </div>
   )
 }
@@ -720,9 +893,10 @@ function dayOfYear(): number {
  * ============================================================ */
 export function WeatherWidget({ item, onMeta }: WidgetProps) {
   const city = (item.meta?.city as string) || ''
+  const compact = item.meta?.compact === true
   // First-time (no city saved) opens directly into edit mode; switching back via
   // 改城市 re-enters the same inline form — no need to delete the card.
-  const [editing, setEditing] = useState(() => !city)
+  const [editing, setEditing] = useState(() => !city && !compact)
   const [input, setInput] = useState(city)
   const [w, setW] = useState<WeatherNow | null>(null)
   const [busy, setBusy] = useState(false)
@@ -762,6 +936,18 @@ export function WeatherWidget({ item, onMeta }: WidgetProps) {
             <button className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => setEditing(false)}>收起</button>
           ) : null}
         </div>
+      </div>
+    )
+
+  if (compact)
+    return (
+      <div className="workspace-weather-compact">
+        <div>
+          <span className="workspace-kicker"><MapPin size={12} /> {w?.city ?? city}</span>
+          <strong>{w ? `${Math.round(w.temp)}°` : busy ? '…' : '—'}</strong>
+          <span className="workspace-muted">{w?.text ?? (busy ? '读取天气' : '点击设置城市')}</span>
+        </div>
+        <button className="workspace-icon-link" onClick={() => setEditing(true)} title="修改城市"><ArrowUpRight size={14} /></button>
       </div>
     )
 
@@ -1237,12 +1423,18 @@ interface WidgetProps {
 
 export const WIDGETS: Record<WidgetKind, { title: string; defaultSize: { w: number; h: number } }> = {
   ai: { title: 'AI 助手', defaultSize: { w: 3, h: 3 } },
+  hermes: { title: 'Hermes', defaultSize: { w: 4, h: 5 } },
   today: { title: '今日', defaultSize: { w: 4, h: 3 } },
   clock: { title: '时钟', defaultSize: { w: 2, h: 2 } },
   tasks: { title: '任务速览', defaultSize: { w: 4, h: 2 } },
   continue: { title: '继续上次', defaultSize: { w: 6, h: 2 } },
+  'current-work': { title: 'Current Work', defaultSize: { w: 8, h: 4 } },
   inbox: { title: '收件箱', defaultSize: { w: 4, h: 2 } },
   'recent-files': { title: '最近文件', defaultSize: { w: 6, h: 2 } },
+  'recent-apps': { title: '最近应用', defaultSize: { w: 4, h: 3 } },
+  'recent-assets': { title: 'Recent Assets', defaultSize: { w: 4, h: 3 } },
+  'work-modes': { title: 'Work Modes', defaultSize: { w: 4, h: 3 } },
+  'work-directories': { title: '工作目录', defaultSize: { w: 4, h: 3 } },
   apps: { title: '软件', defaultSize: { w: 4, h: 3 } },
   images: { title: '图片', defaultSize: { w: 4, h: 3 } },
   docs: { title: '文件', defaultSize: { w: 4, h: 3 } },
@@ -1269,8 +1461,14 @@ export interface WidgetPickerEntry {
 
 export const WIDGET_PICKER: Array<{ category: string; items: WidgetPickerEntry[] }> = [
   {
-    category: '桌面空间',
+    category: 'Workspace',
     items: [
+      { kind: 'current-work', icon: Play },
+      { kind: 'hermes', icon: Sparkle },
+      { kind: 'work-modes', icon: Gauge },
+      { kind: 'recent-apps', icon: SquaresFour },
+      { kind: 'recent-assets', icon: Images },
+      { kind: 'work-directories', icon: FolderOpen },
       { kind: 'apps', icon: SquaresFour },
       { kind: 'images', icon: Images },
       { kind: 'folders', icon: FolderOpen },
@@ -1432,6 +1630,8 @@ export function renderWidget(kind: WidgetKind, item: LayoutItem, onMeta: (patch:
   switch (kind) {
     case 'ai':
       return <AIWidget />
+    case 'hermes':
+      return <WorkspaceHermesWidget />
     case 'today':
       return <TodayWidget />
     case 'clock':
@@ -1440,10 +1640,20 @@ export function renderWidget(kind: WidgetKind, item: LayoutItem, onMeta: (patch:
       return <TasksWidget />
     case 'continue':
       return <ContinueWidget />
+    case 'current-work':
+      return <CurrentWorkWidget />
     case 'inbox':
       return <InboxWidget />
     case 'recent-files':
       return <RecentFilesWidget />
+    case 'recent-apps':
+      return <RecentAppsWidget />
+    case 'recent-assets':
+      return <RecentAssetsWidget />
+    case 'work-modes':
+      return <WorkModesWidget />
+    case 'work-directories':
+      return <WorkDirectoriesWidget />
     case 'apps':
       return <SoftwareWidget />
     case 'images':

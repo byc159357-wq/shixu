@@ -60,12 +60,18 @@ export type Wallpaper = 'none' | 'aurora' | 'dusk' | 'midnight' | 'porcelain' | 
 
 export type WidgetKind =
   | 'ai'
+  | 'hermes'
   | 'today'
   | 'clock'
   | 'tasks'
   | 'continue'
+  | 'current-work'
   | 'inbox'
   | 'recent-files'
+  | 'recent-apps'
+  | 'recent-assets'
+  | 'work-modes'
+  | 'work-directories'
   | 'apps'
   | 'images'
   | 'docs'
@@ -122,6 +128,14 @@ export interface AppEntry {
 
 /** The five auto-syncing desktop boxes (软件 / 图片 / 文件 / 文件夹 / 视频). */
 export type BoxKind = 'apps' | 'images' | 'docs' | 'folders' | 'videos'
+
+/** A recent launch record used by the Workspace status surface. */
+export interface RecentOpenItem {
+  kind: BoxKind | 'file'
+  name: string
+  path: string
+  openedAt: string
+}
 
 export interface SystemStats {
   cpu: number
@@ -838,6 +852,7 @@ export interface WorkdeckApi {
   }
   boxes: {
     list: (kind: BoxKind) => Promise<AppEntry[]>
+    recent: (kind: BoxKind, limit?: number) => Promise<RecentOpenItem[]>
     launch: (path: string, kind: BoxKind, name: string) => Promise<{ ok: boolean; error?: string }>
     addPaths: (paths: string[], kind: BoxKind) => Promise<void>
     remove: (id: string) => Promise<boolean>
