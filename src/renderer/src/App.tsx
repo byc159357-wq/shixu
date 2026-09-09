@@ -11,6 +11,7 @@ import {
   CalendarDots,
   Sparkle,
   Images,
+  SquaresFour,
   Play
 } from '@phosphor-icons/react'
 import { useAppStore, type Module } from './store'
@@ -21,7 +22,7 @@ import { Logo } from './components/Logo'
 import { StartupIntro } from './components/StartupIntro'
 import { RouteTransition } from './components/RouteTransition'
 import { ProjectSwitcher } from './components/ProjectSwitcher'
-import { HomePage } from './pages/HomePage'
+import { HomePage, WorkspacePage } from './pages/HomePage'
 import { ProjectPage } from './pages/ProjectPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { LibraryPage } from './pages/LibraryPage'
@@ -148,6 +149,7 @@ const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
     id: 'workspace',
     label: 'Workspace',
     items: [
+      { id: 'workspace', icon: <SquaresFour size={18} />, title: '自由工作台', label: '工作台' },
       { id: 'projects', icon: <FolderOpen size={18} />, title: '项目空间', label: '项目' },
       { id: 'library', icon: <Images size={18} />, title: '文件库', label: '文件库' }
     ]
@@ -275,6 +277,8 @@ function Workspace() {
     switch (module) {
       case 'home':
         return <HomePage />
+      case 'workspace':
+        return <WorkspacePage />
       case 'projects':
         return <ProjectPage />
       case 'settings':

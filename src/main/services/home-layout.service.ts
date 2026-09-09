@@ -1,27 +1,36 @@
 import type { Db } from './db'
 import type { HomeLayout, LayoutItem } from '../../shared/types'
 
-const KEY = 'home.layout'
+const KEY = 'workspace.layout'
+const LEGACY_KEY = 'home.layout'
 
 /**
- * Persists the user's dashboard layout (version 1). Stored as JSON in the
- * settings table — keeps the schema migration surface minimal.
+ * Persists the user's Workspace layout (version 1). Today uses a fixed
+ * template and never calls this service. The old home.layout key is migrated
+ * on first read so existing custom layouts are not lost.
  */
 export class HomeLayoutService {
   constructor(private db: Db) {}
 
   get(): HomeLayout | null {
-    const row = this.db.prepare(`SELECT value FROM settings WHERE key = ?`).get(KEY) as
-      | { value: string }
+    const row = this.db.prepare(
+      `SELECT key, value FROM settings
+       WHERE key IN (?, ?)
+       ORDER BY CASE key WHEN ? THEN 0 ELSE 1 END
+       LIMIT 1`
+    ).get(KEY, LEGACY_KEY, KEY) as
+      | { key: string; value: string }
       | undefined
     if (!row) return null
     try {
       const parsed = JSON.parse(row.value) as HomeLayout
       if (parsed.version !== 1 || !Array.isArray(parsed.items)) return null
-      return {
+      const layout: HomeLayout = {
         version: 1,
         items: parsed.items.filter(isValidItem)
       }
+      if (row.key === LEGACY_KEY) this.save(layout)
+      return layout
     } catch {
       return null
     }

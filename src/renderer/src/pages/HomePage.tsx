@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type HTM
 import type * as React from 'react'
 import { Plus, X, CaretRight, CaretLeft, MagnifyingGlass, TrendUp, ArrowUpRight, FolderOpen, Play, Clock, CheckCircle, Sparkle } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
-import type { LayoutItem, WidgetKind, HabitItem, HabitSuggestResult, IntelligenceSuggestion, WorkMode, WorkspaceAction } from '../../../shared/types'
+import type { LayoutItem, WidgetKind, HabitItem, HabitSuggestResult, IntelligenceSuggestion, WorkspaceAction } from '../../../shared/types'
 import { findFreePosition, newId } from '../lib/grid-layout'
 import { clampCols } from '../hooks/useGridDragResize'
 import { DashboardCanvas } from '../components/DashboardCanvas'
@@ -13,7 +13,7 @@ const ROWS = 64
 
 const HABIT_KIND: Record<string, string> = { apps: '软件', images: '图片', docs: '文件', folders: '文件夹', videos: '视频', file: '文件' }
 
-function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
+function TodayCenter() {
   const projects = useAppStore((s) => s.projects)
   const currentProjectId = useAppStore((s) => s.currentProjectId)
   const libraryFiles = useAppStore((s) => s.libraryFiles)
@@ -24,21 +24,7 @@ function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
   const pushToast = useAppStore((s) => s.pushToast)
   const intelligence = useAppStore((s) => s.intelligence)
   const refreshIntelligence = useAppStore((s) => s.refreshIntelligence)
-  const [scenes, setScenes] = useState<WorkMode[]>([])
   const currentProject = workspaceContext?.currentProject ?? projects.find((p) => p.id === currentProjectId) ?? null
-
-  useEffect(() => {
-    let alive = true
-    void window.workdeck.scenario.list().then((nextScenes: WorkMode[]) => {
-      if (!alive) return
-      setScenes((nextScenes as WorkMode[]).slice().sort((a, b) => {
-        const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : 0
-        const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : 0
-        return bTime - aTime || b.usageCount - a.usageCount
-      }).slice(0, 4))
-    }).catch(() => { /* empty state remains useful when services are offline */ })
-    return () => { alive = false }
-  }, [])
 
   // A loaded but empty context means this is a first run (or there is no
   // recoverable session). Keep the default Today state instead of presenting
@@ -65,18 +51,6 @@ function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
     else setModule('projects')
   }
 
-  const runScene = async (scene: WorkMode) => {
-    const result = await window.workdeck.scenario.apply(scene.id)
-    if (!result.ok) pushToast('error', `部分未打开：${result.errors.join('；')}`)
-    else pushToast('success', `已启动「${scene.name}」`)
-    const latest = await window.workdeck.scenario.list() as WorkMode[]
-    setScenes(latest.slice().sort((a, b) => {
-      const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : 0
-      const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : 0
-      return bTime - aTime || b.usageCount - a.usageCount
-    }).slice(0, 4))
-  }
-
   const runSuggestion = async (suggestion: IntelligenceSuggestion) => {
     if (suggestion.workModeId) {
       const result = await window.workdeck.scenario.apply(suggestion.workModeId)
@@ -97,7 +71,6 @@ function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
           <p className="today-subtitle">把注意力留给正在发生的工作。</p>
         </div>
         <div className="today-header-actions">
-          <button className="btn btn-secondary btn-sm" onClick={onCustomLayout}>自定义布局</button>
           <button className="btn btn-primary btn-sm" onClick={() => setModule('calendar')}><Clock size={14} /> 打开计划</button>
         </div>
       </header>
@@ -146,11 +119,6 @@ function TodayCenter({ onCustomLayout }: { onCustomLayout: () => void }) {
           <ContinueWidget />
         </section>
 
-        <section className="today-panel today-scene-panel">
-          <div className="today-panel-head"><span>最近工作模式</span><button className="today-link" onClick={() => setModule('scenarios')}>管理模式 <ArrowUpRight size={14} /></button></div>
-          {scenes.length ? <div className="today-scene-list">{scenes.map((scene) => <button key={scene.id} className="today-scene-row" onClick={() => void runScene(scene)}><span className="today-scene-icon"><Play size={14} weight="fill" /></span><span><strong>{scene.name}</strong><small>{scene.project ? '含项目恢复' : '未绑定项目'} · 使用 {scene.usageCount} 次{scene.lastUsed ? ` · 最近 ${new Date(scene.lastUsed).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}` : ''}</small></span><ArrowUpRight size={14} /></button>)}</div> : <div className="today-empty">保存一个工作模式后，可以恢复软件、文件、项目和任务。</div>}
-        </section>
-
         <section className="today-panel today-timeline-panel">
           <div className="today-panel-head"><span>Timeline</span><span className="today-count">最近活动</span></div>
           {timeline.length ? <div className="today-timeline">{timeline.map((item) => { const Icon = actionIcon(item); return <div className="today-timeline-row" key={item.id}><span className="today-timeline-line"><Icon size={14} /></span><span><strong>{item.label}</strong><small>{item.detail} · {new Date(item.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small></span></div> })}</div> : <div className="today-empty">你的工作轨迹会显示在这里。</div>}
@@ -181,7 +149,7 @@ function defaultLayout(): LayoutItem[] {
   ]
 }
 
-export function HomePage() {
+export function WorkspacePage() {
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<LayoutItem | null>(null)
   const [habit, setHabit] = useState<HabitSuggestResult | null>(null)
@@ -312,8 +280,6 @@ export function HomePage() {
     [items, setHomeLayoutItems]
   )
 
-  if (homeLayoutMode === 'view') return <TodayCenter onCustomLayout={() => setHomeLayoutMode('edit')} />
-
   return (
     <main className="workspace" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
       {/* Subtitle + add action on one line. The section title now lives in the
@@ -323,16 +289,18 @@ export function HomePage() {
           else — and the roomier workspace is the whole point. */}
       <div className="home-hero" style={{ flexShrink: 0, position: 'relative' }}>
         <div className="sub" style={{ paddingRight: '9rem' }}>
-          自由布局 · 拖动卡片调整位置，右下角调整大小
+          Workspace · 自由布局，拖动卡片调整位置，右下角调整大小
         </div>
         <div className="home-edit-actions" style={{ position: 'absolute', top: 0, right: 0 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => void resetHomeLayout(fallbackLayout)}>恢复默认</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => void saveHomeLayout()}>保存布局</button>
-          <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
-            <Plus size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
-            添加卡片
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={async () => { await saveHomeLayout(); setHomeLayoutMode('view') }}>完成编辑</button>
+          {homeLayoutMode === 'edit' ? <>
+            <button className="btn btn-secondary btn-sm" onClick={() => void resetHomeLayout(fallbackLayout)}>恢复默认</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void saveHomeLayout()}>保存布局</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
+              <Plus size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+              添加卡片
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={async () => { await saveHomeLayout(); setHomeLayoutMode('view') }}>完成编辑</button>
+          </> : <button className="btn btn-primary btn-sm" onClick={() => setHomeLayoutMode('edit')}>编辑布局</button>}
         </div>
       </div>
 
@@ -428,6 +396,19 @@ export function HomePage() {
       )}
     </main>
   )
+}
+
+/** Today is a fixed status template; it never reads or writes Workspace layout. */
+export function HomePage() {
+  const loadProjects = useAppStore((s) => s.loadProjects)
+  const refresh = useAppStore((s) => s.refreshAfterFilesChange)
+
+  useEffect(() => {
+    void loadProjects()
+    void refresh()
+  }, [loadProjects, refresh])
+
+  return <TodayCenter />
 }
 
 /**

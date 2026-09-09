@@ -33,6 +33,7 @@ export type FileEntry = FileWithProject
 
 export type Module =
   | 'home'
+  | 'workspace'
   | 'projects'
   | 'library'
   | 'calendar'
