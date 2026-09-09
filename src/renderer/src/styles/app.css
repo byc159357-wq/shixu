@@ -1121,10 +1121,10 @@ body[data-theme='hermes'] .ai-brand {
 /* ============ Horizontal scroll hints ============
    Show an arrow at the workspace edge only when cards are hidden
    off-screen horizontally. Click scrolls toward the hidden cards. */
-/* Anchored to the viewport so the arrows never get clipped by any
-   scroll container, and never jump with content scroll. */
+/* Anchored to the Workspace page rather than the app viewport, so the arrows
+   stay inside the free-layout area and never cover the navigation rail. */
 .scroll-hint {
-  position: fixed;
+  position: absolute;
   z-index: 100;
   /* Keep the hit target a compact circle even if a broad button rule is
      introduced elsewhere in the shell. These controls must never become a
