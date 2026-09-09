@@ -425,6 +425,8 @@ export interface AgentModelList {
   currentModelId?: string | null
 }
 
+export type AgentModelLoadStatus = 'idle' | 'loading' | 'success' | 'error' | 'empty'
+
 export interface AiQueryResult {
   intent: AiIntent | null
   source: 'llm' | 'rules'

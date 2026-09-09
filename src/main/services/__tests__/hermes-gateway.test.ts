@@ -58,4 +58,20 @@ describe('Hermes native gateway helpers', () => {
       ]
     })
   })
+
+  it('accepts flat model payloads returned by newer gateways', () => {
+    expect(parseGatewayModels({
+      availableModels: [
+        { id: 'gateway-fast', name: 'Gateway Fast' },
+        'gateway-safe'
+      ],
+      currentModelId: 'gateway-fast'
+    })).toEqual({
+      currentModelId: 'gateway-fast',
+      models: [
+        { id: 'gateway-fast', name: 'Gateway Fast' },
+        { id: 'gateway-safe', name: 'gateway-safe' }
+      ]
+    })
+  })
 })

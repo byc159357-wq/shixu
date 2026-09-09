@@ -610,6 +610,7 @@ export default function App() {
   const refreshAfterFilesChange = useAppStore((s) => s.refreshAfterFilesChange)
   const loadWorkspaceContext = useAppStore((s) => s.loadWorkspaceContext)
   const loadIntelligence = useAppStore((s) => s.loadIntelligence)
+  const loadHermesModels = useAppStore((s) => s.loadHermesModels)
   const appShellRef = useRef<HTMLDivElement>(null)
   const [showStartup, setShowStartup] = useState(true)
   const [hermesOpen, setHermesOpen] = useState(false)
@@ -680,6 +681,13 @@ export default function App() {
   useEffect(() => {
     void loadIntelligence()
   }, [loadIntelligence])
+
+  // Warm the shared Hermes model roster once at shell startup. The model
+  // picker and compact Hermes panel then consume the same Zustand state and
+  // never race separate requests with different selections.
+  useEffect(() => {
+    void loadHermesModels()
+  }, [loadHermesModels])
 
   // Load email config (then inbox count/list) on startup
   const loadEmailInfo = useAppStore((s) => s.loadEmailInfo)

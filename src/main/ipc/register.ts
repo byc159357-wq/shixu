@@ -269,6 +269,7 @@ export function registerIpc(
   // Real model picker from the selected (live) software — Hermes returns its
   // full roster; OpenAI-compatible software returns its configured model.
   ipcMain.handle(IPC.AGENT_MODEL_LIST, async (_e, payload: { provider?: string }) => {
+    syncProfileProviders()
     const p = hub.get(payload?.provider ?? 'hermes')
     return p?.listModels?.() ?? { models: [], currentModelId: null }
   })

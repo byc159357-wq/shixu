@@ -78,15 +78,29 @@ export function parseModelState(state: any): {
     currentModelId: null
   }
   if (!state || typeof state !== 'object') return out
-  const avail = state.availableModels ?? state.available_models ?? state.models
+  const avail = state.availableModels
+    ?? state.available_models
+    ?? state.models?.availableModels
+    ?? state.models?.available_models
+    ?? state.models
+    ?? state.options
   if (Array.isArray(avail)) {
+    const seen = new Set<string>()
     for (const m of avail) {
-      const id = typeof m === 'string' ? m : m?.modelId ?? m?.model_id
-      if (!id) continue
-      out.models.push({ id, name: m?.name ?? id, description: m?.description ?? undefined })
+      const id = typeof m === 'string' ? m : m?.modelId ?? m?.model_id ?? m?.id ?? m?.model
+      if (!id || seen.has(String(id))) continue
+      seen.add(String(id))
+      out.models.push({ id: String(id), name: m?.name ?? m?.label ?? id, description: m?.description ?? undefined })
     }
   }
-  const cur = state.currentModelId ?? state.current_model_id
+  const cur = state.currentModelId
+    ?? state.current_model_id
+    ?? state.models?.currentModelId
+    ?? state.models?.current_model_id
+    ?? state.currentModel?.id
+    ?? state.current_model?.id
+    ?? state.modelId
+    ?? state.model_id
   if (cur) out.currentModelId = String(cur)
   return out
 }

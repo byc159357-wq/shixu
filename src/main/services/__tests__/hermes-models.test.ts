@@ -34,6 +34,22 @@ describe('parseModelState (model roster parsing)', () => {
     expect(r.currentModelId).toBeNull()
   })
 
+  it('accepts ACP model entries that use id/label aliases', () => {
+    expect(parseModelState({
+      models: [
+        { id: 'local-fast', label: 'Local Fast' },
+        { model: 'local-safe', name: 'Local Safe' }
+      ],
+      modelId: 'local-safe'
+    })).toEqual({
+      models: [
+        { id: 'local-fast', name: 'Local Fast', description: undefined },
+        { id: 'local-safe', name: 'Local Safe', description: undefined }
+      ],
+      currentModelId: 'local-safe'
+    })
+  })
+
   it('returns empty roster for null / malformed payloads', () => {
     expect(parseModelState(null)).toEqual({ models: [], currentModelId: null })
     expect(parseModelState({ availableModels: 'nope' })).toEqual({ models: [], currentModelId: null })

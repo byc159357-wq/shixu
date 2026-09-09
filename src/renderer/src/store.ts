@@ -24,7 +24,10 @@ import type {
   HomeLayout,
   LayoutItem,
   WorkspaceContext,
-  IntelligenceSnapshot
+  IntelligenceSnapshot,
+  AgentModelInfo,
+  AgentModelLoadStatus,
+  AgentModelList
 } from '../../shared/types'
 import { findFreePosition, newId, resolveOverlaps, type LayoutItem as GridLayoutItem } from './lib/grid-layout'
 
@@ -138,6 +141,11 @@ interface AppState {
   homeLayoutLoaded: boolean
   workspaceContext: WorkspaceContext | null
   intelligence: IntelligenceSnapshot | null
+  hermesModels: AgentModelInfo[]
+  hermesModelId: string
+  hermesModelStatus: AgentModelLoadStatus
+  hermesModelError: string | null
+  hermesModelProvider: string
 
   setModule: (m: Module) => void
   setProjectTab: (t: ProjectTab) => void
@@ -187,6 +195,8 @@ interface AppState {
   loadWorkspaceContext: () => Promise<void>
   loadIntelligence: () => Promise<void>
   refreshIntelligence: () => Promise<void>
+  loadHermesModels: (provider?: string) => Promise<void>
+  setHermesModel: (modelId: string) => void
   setFocusTask: (taskId: string | null) => Promise<void>
   loadProjects: () => Promise<void>
   createProject: (name: string) => Promise<void>
@@ -225,6 +235,7 @@ interface AppState {
 
 let toastId = 0
 let homeLayoutSaveTimer: ReturnType<typeof setTimeout> | null = null
+let hermesModelRequest = 0
 
 const HOME_LAYOUT_ROWS = 64
 
@@ -248,6 +259,17 @@ function normalizeHomeLayout(saved: HomeLayout | null, fallback: LayoutItem[]): 
   const resolved = resolveOverlaps(items as GridLayoutItem[], { cols: Math.max(12, extent), rows: HOME_LAYOUT_ROWS })
   if (resolved.some((item, index) => item.x !== items[index]?.x || item.y !== items[index]?.y)) migrated = true
   return { layout: { version: 1, items: resolved as LayoutItem[] }, migrated }
+}
+
+function normalizeAgentModels(roster: AgentModelList | null | undefined): AgentModelInfo[] {
+  if (!Array.isArray(roster?.models)) return []
+  const seen = new Set<string>()
+  return roster.models.flatMap((model) => {
+    const id = String(model?.id ?? '').trim()
+    if (!id || seen.has(id)) return []
+    seen.add(id)
+    return [{ id, name: String(model.name || id), description: model.description }]
+  })
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -294,6 +316,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   homeLayoutLoaded: false,
   workspaceContext: null,
   intelligence: null,
+  hermesModels: [],
+  hermesModelId: typeof localStorage !== 'undefined' ? localStorage.getItem('wd_agent_model') || '' : '',
+  hermesModelStatus: 'idle',
+  hermesModelError: null,
+  hermesModelProvider: typeof localStorage !== 'undefined' ? localStorage.getItem('wd_agent_tool') || 'hermes' : 'hermes',
 
   setModule: (module) => set({ module }),
   setProjectTab: (projectTab) => set({ projectTab }),
@@ -442,6 +469,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ error: String(err) })
     }
+  },
+
+  loadHermesModels: async (provider) => {
+    const selectedProvider = provider?.trim() || (typeof localStorage !== 'undefined' ? localStorage.getItem('wd_agent_tool') || 'hermes' : 'hermes')
+    const request = ++hermesModelRequest
+    set({ hermesModelProvider: selectedProvider, hermesModelStatus: 'loading', hermesModelError: null })
+    try {
+      const roster = await window.workdeck.agent.modelList({ provider: selectedProvider })
+      if (request !== hermesModelRequest) return
+      const models = normalizeAgentModels(roster)
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('wd_agent_model') || '' : ''
+      const current = typeof roster?.currentModelId === 'string' ? roster.currentModelId.trim() : ''
+      const selected = models.find((model) => model.id === saved)?.id
+        ?? models.find((model) => model.id === current)?.id
+        ?? models[0]?.id
+        ?? ''
+      if (selected && typeof localStorage !== 'undefined') localStorage.setItem('wd_agent_model', selected)
+      set({ hermesModels: models, hermesModelId: selected, hermesModelStatus: models.length ? 'success' : 'empty', hermesModelError: null })
+    } catch (error) {
+      if (request !== hermesModelRequest) return
+      set({ hermesModelStatus: 'error', hermesModelError: String((error as Error)?.message ?? error), hermesModels: [] })
+    }
+  },
+
+  setHermesModel: (modelId) => {
+    const id = modelId.trim()
+    if (!id || !get().hermesModels.some((model) => model.id === id)) return
+    if (typeof localStorage !== 'undefined') localStorage.setItem('wd_agent_model', id)
+    set({ hermesModelId: id })
   },
 
   setFocusTask: async (taskId) => {

@@ -16,14 +16,6 @@ const MODEL_KEY = 'wd_agent_model'
 const TOOL_KEY = 'wd_agent_tool'
 const RELOAD_HINT = '未检测到 Hermes，请确认已安装本地 Agent.'
 
-/** 兜底模型清单：未连上所选 AI 软件/离线时用，避免下拉为空。真正可选
- *  模型以主进程 agent.modelList() 返回的实时清单为准并覆盖之。 */
-const FALLBACK_MODELS: SelectOption[] = [
-  { value: 'longcat-2.0-free', label: 'Longcat 2.0 Free' },
-  { value: 'longcat-2.0-ultra', label: 'Longcat 2.0 Ultra' },
-  { value: 'default', label: '默认模型' }
-]
-
 /** 可接入的外部 AI 软件。真正的清单由主进程 agent.listProviders 提供；
  *  这里仅作兜底（未拿到后端前/离线时），避免切换器空白。 */
 const FALLBACK_TOOLS: AgentProviderInfo[] = [
@@ -135,16 +127,6 @@ function saveSessions(list: Session[]) {
     /* ignore quota errors */
   }
 }
-function loadModel(): string {
-  try {
-    // Keep whatever was stored — real model ids come from the connected
-    // software (e.g. "nous:meituan/longcat-2.0:free") and must survive reloads;
-    // the roster effect re-aligns if the id no longer exists.
-    return localStorage.getItem(MODEL_KEY) || FALLBACK_MODELS[0].value
-  } catch {
-    return FALLBACK_MODELS[0].value
-  }
-}
 function loadTool(): string {
   try {
     const v = localStorage.getItem(TOOL_KEY)
@@ -198,12 +180,27 @@ export function AIPage() {
   const [reauthMsg, setReauthMsg] = useState<string | null>(null)
   const [reauthFeedback, setReauthFeedback] = useState<string | null>(null)
   const [tab, setTab] = useState<'sessions' | 'skills'>('sessions')
-  const [modelId, setModelId] = useState<string>(loadModel)
-  const [modelOptions, setModelOptions] = useState<SelectOption[]>(FALLBACK_MODELS)
   const [toolId, setToolId] = useState<string>(loadTool)
   const [tools, setTools] = useState<AgentProviderInfo[]>(FALLBACK_TOOLS)
   const [dragId, setDragId] = useState<string | null>(null)
   const [busyRunId, setBusyRunId] = useState<string | null>(null)
+  const modelId = useAppStore((s) => s.hermesModelId)
+  const hermesModels = useAppStore((s) => s.hermesModels)
+  const modelStatus = useAppStore((s) => s.hermesModelStatus)
+  const modelError = useAppStore((s) => s.hermesModelError)
+  const modelProvider = useAppStore((s) => s.hermesModelProvider)
+  const loadHermesModels = useAppStore((s) => s.loadHermesModels)
+  const setHermesModel = useAppStore((s) => s.setHermesModel)
+  const modelOptions: SelectOption[] = (modelProvider === toolId ? hermesModels : []).map((m) => {
+    const name = m.name || m.id
+    const sep = name.indexOf(' · ')
+    return { value: m.id, label: name, shortLabel: sep > 0 ? name.slice(sep + 3) : name }
+  })
+  const modelPlaceholder = modelStatus === 'loading'
+    ? '正在加载模型...'
+    : modelStatus === 'error'
+      ? '模型加载失败，点击重试'
+      : '请先配置 AI 服务'
 
   const activeIdRef = useRef<string | null>(null)
   activeIdRef.current = activeId
@@ -355,41 +352,12 @@ export function AIPage() {
     return () => { alive = false }
   }, [])
 
-  // Pull the real model roster from the currently selected software (e.g.
-  // Hermes ACP) and surface it in the picker, replacing the static fallback.
+  // Pull the real model roster from the shared Zustand loader whenever the
+  // selected AI software changes. Both the full AI page and the compact Hermes
+  // panel now consume the same request/status/selection state.
   useEffect(() => {
-    let alive = true
-    const ml = window.workdeck?.agent?.modelList
-    if (!ml) return () => { alive = false }
-    ml({ provider: toolId })
-      .then((r: { models?: { id: string; name?: string }[]; currentModelId?: string | null }) => {
-        if (!alive) return
-        const items: SelectOption[] = (r?.models ?? [])
-          .map((m) => {
-            const name = m.name || m.id
-            // "Nous Portal · anthropic/claude-fable-5" → menu keeps the full
-            // name, trigger shows the model part after the separator.
-            const sep = name.indexOf(' · ')
-            return {
-              value: m.id,
-              label: name,
-              shortLabel: sep > 0 ? name.slice(sep + 3) : name
-            }
-          })
-        if (!items.length) return // keep fallback models
-        setModelOptions(items)
-        // The selection must always be one of the real options — align it
-        // with the software's current model (or the first available one).
-        const cur = r?.currentModelId ? String(r.currentModelId) : ''
-        setModelId((prev) => {
-          if (items.some((o) => o.value === prev)) return prev
-          if (cur && items.some((o) => o.value === cur)) return cur
-          return items[0].value
-        })
-      })
-      .catch(() => { /* keep fallback models */ })
-    return () => { alive = false }
-  }, [toolId])
+    void loadHermesModels(toolId)
+  }, [loadHermesModels, toolId])
 
   // Persist the selection whenever it changes (manual pick or roster alignment).
   useEffect(() => {
@@ -594,7 +562,7 @@ export function AIPage() {
     })
     setDragId(null)
   }
-  const pickModel = (v: string) => setModelId(v)
+  const pickModel = (v: string) => setHermesModel(v)
   const pickTool = (v: string) => {
     setToolId(v)
     saveTool(v)
@@ -774,7 +742,20 @@ export function AIPage() {
             </div>
             <div className="ai-composer-foot">
               <Select value={toolId} onChange={pickTool} options={toolOptions} className="ai-select" />
-              <Select value={modelId} onChange={pickModel} options={modelOptions} className="ai-select ai-select-model" menuMinWidth={300} />
+              <Select
+                value={modelId}
+                onChange={pickModel}
+                options={modelOptions.length ? modelOptions : [{ value: '', label: modelPlaceholder, disabled: true }]}
+                className="ai-select ai-select-model"
+                menuMinWidth={300}
+                disabled={modelStatus !== 'success'}
+              />
+              <button className="ai-icon-btn" title="刷新模型" aria-label="刷新模型" onClick={() => void loadHermesModels(toolId)} disabled={modelStatus === 'loading'}>
+                <ArrowClockwise size={14} />
+              </button>
+              {modelStatus === 'loading' && <span className="ai-model-status">正在加载模型...</span>}
+              {modelStatus === 'error' && <button className="ai-model-status is-error" onClick={() => void loadHermesModels(toolId)}>模型加载失败，点击重试{modelError ? ` · ${modelError}` : ''}</button>}
+              {modelStatus === 'empty' && <span className="ai-model-status">请先配置 AI 服务</span>}
               {reauthMode && toolId === 'hermes' ? (
                 <span className="ai-reauth">
                   <span className="ai-reauth-warn">

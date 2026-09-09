@@ -24,11 +24,12 @@ import {
   FileText,
   Sparkle,
   PaperPlaneTilt,
-  ArrowUpRight
+  ArrowUpRight,
+  ArrowsClockwise
 } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
-import type { AgentModelList, HermesStreamEvent, LayoutItem, LibraryFile, MailDetailResult, MailPreview, RecentOpenItem, SystemStats, WeatherNow, WidgetKind, WorkMode } from '../../../shared/types'
+import type { HermesStreamEvent, LayoutItem, LibraryFile, MailDetailResult, MailPreview, RecentOpenItem, SystemStats, WeatherNow, WidgetKind, WorkMode } from '../../../shared/types'
 import {
   SoftwareWidget,
   ImagesWidget,
@@ -1232,42 +1233,25 @@ export function AIWidget() {
   const [input, setInput] = useState('')
   const [reply, setReply] = useState('在这里直接向 Hermes 提问。')
   const [busy, setBusy] = useState(false)
-  const [modelOptions, setModelOptions] = useState<SelectOption[]>([])
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('wd_agent_model') || '')
+  const hermesModels = useAppStore((s) => s.hermesModels)
+  const selectedModel = useAppStore((s) => s.hermesModelId)
+  const modelStatus = useAppStore((s) => s.hermesModelStatus)
+  const modelError = useAppStore((s) => s.hermesModelError)
+  const modelProvider = useAppStore((s) => s.hermesModelProvider)
+  const loadHermesModels = useAppStore((s) => s.loadHermesModels)
+  const setHermesModel = useAppStore((s) => s.setHermesModel)
   const busyRef = useRef(false)
   const streamTextRef = useRef(false)
+  const provider = localStorage.getItem('wd_agent_tool') || 'hermes'
+  const modelOptions: SelectOption[] = hermesModels.map((m) => {
+    const label = m.name || m.id
+    const separator = label.indexOf(' · ')
+    return { value: m.id, label, shortLabel: separator >= 0 ? label.slice(separator + 3) : label }
+  })
 
   useEffect(() => {
-    let alive = true
-    const agent = window.workdeck?.agent
-    const provider = localStorage.getItem('wd_agent_tool') || 'hermes'
-    if (!agent) return () => { alive = false }
-    agent.modelList({ provider })
-      .then((roster: AgentModelList) => {
-        if (!alive) return
-        const options = (roster.models ?? []).map((m) => {
-          const label = m.name || m.id
-          const separator = label.indexOf(' · ')
-          return {
-            value: m.id,
-            label,
-            shortLabel: separator >= 0 ? label.slice(separator + 3) : label
-          }
-        })
-        setModelOptions(options)
-        setSelectedModel((saved) => {
-          const next = options.some((o) => o.value === saved)
-            ? saved
-            : roster.currentModelId && options.some((o) => o.value === roster.currentModelId)
-              ? roster.currentModelId
-              : options[0]?.value ?? saved
-          if (next) localStorage.setItem('wd_agent_model', next)
-          return next
-        })
-      })
-      .catch(() => { /* keep the saved model as a send fallback */ })
-    return () => { alive = false }
-  }, [])
+    if (modelStatus === 'idle' || modelProvider !== provider) void loadHermesModels(provider)
+  }, [loadHermesModels, modelProvider, modelStatus, provider])
 
   useEffect(() => {
     const off = window.workdeck?.agent?.onEvent?.((ev: HermesStreamEvent) => {
@@ -1305,22 +1289,14 @@ export function AIWidget() {
     let model = selectedModel || localStorage.getItem('wd_agent_model') || undefined
     let availableModels: string[] = []
     try {
-      // The saved picker value can outlive a provider's free-model window.
-      // Resolve Hermes's live current model before every compact-card request.
-      try {
-        const roster: AgentModelList = await agent.modelList({ provider })
-        availableModels = (roster.models ?? []).map((m) => m.id).filter(Boolean)
-        const current = roster.currentModelId?.trim()
-        if (!model || !availableModels.includes(model)) {
-          model = current && availableModels.includes(current) ? current : availableModels[0]
-        }
-        if (model) {
-          localStorage.setItem('wd_agent_model', model)
-          setSelectedModel(model)
-        }
-      } catch {
-        // Sending can still succeed with Hermes's current session model.
-      }
+      // Resolve the live roster through the shared Zustand loader before each
+      // compact-card request. This also replaces stale selections after a
+      // provider refresh or an expired model window.
+      await loadHermesModels(provider)
+      const latest = useAppStore.getState()
+      availableModels = latest.hermesModels.map((m) => m.id).filter(Boolean)
+      if (!model || !availableModels.includes(model)) model = latest.hermesModelId || availableModels[0]
+      if (model) setHermesModel(model)
 
       const run = (modelId?: string) => agent.send(text, {
         provider,
@@ -1340,8 +1316,7 @@ export function AIWidget() {
         if (!expired || alternatives.length === 0) throw firstError
 
         model = alternatives[0]
-        localStorage.setItem('wd_agent_model', model)
-        setSelectedModel(model)
+        setHermesModel(model)
         streamTextRef.current = false
         setReply('当前模型已失效，正在自动切换模型…')
         finalText = await run(model)
@@ -1375,19 +1350,26 @@ export function AIWidget() {
           className="input home-ai-model-select"
           aria-label="选择 AI 模型"
           value={selectedModel}
-          disabled={busy || modelOptions.length === 0}
+          disabled={busy || modelStatus !== 'success'}
           onChange={(event) => {
             const value = event.target.value
-            setSelectedModel(value)
-            localStorage.setItem('wd_agent_model', value)
+            setHermesModel(value)
           }}
         >
-          {modelOptions.length === 0 && <option value="">暂无可用模型</option>}
+          {modelStatus === 'loading' && <option value="">正在加载模型...</option>}
+          {modelStatus === 'empty' && <option value="">请先配置 AI 服务</option>}
+          {modelStatus === 'error' && <option value="">模型加载失败，点击重试</option>}
           {modelOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.shortLabel ?? option.label}</option>
           ))}
         </select>
+        <button className="ai-icon-btn" title="刷新模型" aria-label="刷新模型" onClick={() => void loadHermesModels(provider)} disabled={modelStatus === 'loading'}>
+          <ArrowsClockwise size={14} />
+        </button>
       </div>
+      {modelStatus === 'loading' && <div className="home-ai-model-status">正在加载模型...</div>}
+      {modelStatus === 'error' && <button className="home-ai-model-status is-error" onClick={() => void loadHermesModels(provider)}>模型加载失败，点击重试{modelError ? ` · ${modelError}` : ''}</button>}
+      {modelStatus === 'empty' && <div className="home-ai-model-status">请先配置 AI 服务</div>}
       <div className={`home-ai-reply ${busy ? 'is-busy' : ''}`} aria-live="polite">
         {reply}
       </div>

@@ -48,23 +48,75 @@ export function pickGatewayPort(ledger: unknown): number | null {
 export function parseGatewayModels(payload: any): AgentModelList {
   const models: AgentModelInfo[] = []
   const seen = new Set<string>()
-  const providers = Array.isArray(payload?.providers) ? payload.providers : []
+  const root = payload?.result && typeof payload.result === 'object' ? payload.result : payload
+  const providerValue = root?.providers ?? root?.data?.providers
+  const providers = Array.isArray(providerValue)
+    ? providerValue
+    : providerValue && typeof providerValue === 'object'
+      ? Object.entries(providerValue).map(([slug, value]) => ({ ...(value as object), slug }))
+      : []
+  const unavailableGlobal = new Set(
+    Array.isArray(root?.unavailable_models)
+      ? root.unavailable_models.map(String)
+      : Array.isArray(root?.unavailableModels)
+        ? root.unavailableModels.map(String)
+        : []
+  )
+  const append = (raw: unknown, providerName = '', unavailable = unavailableGlobal) => {
+    const id = typeof raw === 'string'
+      ? raw
+      : String((raw as { id?: unknown; model?: unknown; modelId?: unknown; model_id?: unknown } | null)?.id
+        ?? (raw as { model?: unknown } | null)?.model
+        ?? (raw as { modelId?: unknown } | null)?.modelId
+        ?? (raw as { model_id?: unknown } | null)?.model_id
+        ?? (raw as { slug?: unknown } | null)?.slug
+        ?? '')
+    if (!id || seen.has(id) || unavailable.has(id)) return
+    seen.add(id)
+    const rawName = typeof raw === 'string'
+      ? raw
+      : String((raw as { name?: unknown } | null)?.name ?? id)
+    models.push({ id, name: providerName ? `${providerName} · ${rawName}` : rawName })
+  }
   for (const provider of providers) {
     const unavailable = new Set(
       Array.isArray(provider?.unavailable_models)
         ? provider.unavailable_models.map(String)
-        : []
+        : Array.isArray(provider?.unavailableModels)
+          ? provider.unavailableModels.map(String)
+          : unavailableGlobal
     )
-    for (const raw of Array.isArray(provider?.models) ? provider.models : []) {
-      const id = typeof raw === 'string' ? raw : String(raw?.id ?? raw?.model ?? '')
-      if (!id || seen.has(id) || unavailable.has(id)) continue
-      seen.add(id)
-      const rawName = typeof raw === 'string' ? raw : String(raw?.name ?? id)
-      const providerName = typeof provider?.name === 'string' ? provider.name.trim() : ''
-      models.push({ id, name: providerName ? `${providerName} · ${rawName}` : rawName })
-    }
+    const providerName = typeof provider?.name === 'string'
+      ? provider.name.trim()
+      : typeof provider?.label === 'string' ? provider.label.trim() : ''
+    const list = Array.isArray(provider?.models)
+      ? provider.models
+      : Array.isArray(provider?.available_models)
+        ? provider.available_models
+        : Array.isArray(provider?.availableModels) ? provider.availableModels : []
+    for (const raw of list) append(raw, providerName, unavailable)
   }
-  const current = payload?.model ? String(payload.model) : null
+  // Some gateway versions return a flat `models`/`availableModels` array and
+  // newer ones wrap it under `options`; accept both so the picker does not
+  // silently become empty when the protocol shape changes.
+  const directRoot = root?.data && typeof root.data === 'object' ? root.data : root
+  const direct = Array.isArray(directRoot?.models)
+    ? directRoot.models
+    : Array.isArray(directRoot?.available_models)
+      ? directRoot.available_models
+      : Array.isArray(directRoot?.availableModels)
+        ? directRoot.availableModels
+        : Array.isArray(directRoot?.options) ? directRoot.options : []
+  for (const raw of direct) append(raw)
+  const currentRaw = root?.model
+    ?? root?.currentModelId
+    ?? root?.current_model_id
+    ?? root?.currentModel?.id
+    ?? root?.current_model?.id
+    ?? directRoot?.model
+    ?? directRoot?.currentModelId
+    ?? directRoot?.current_model_id
+  const current = currentRaw ? String(currentRaw) : null
   // Hermes may leave an expired model as `model` while also listing it under
   // `unavailable_models`. Never reinsert that stale model into the picker.
   return { models, currentModelId: current && seen.has(current) ? current : models[0]?.id ?? null }

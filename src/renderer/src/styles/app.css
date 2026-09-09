@@ -3150,6 +3150,9 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
 
 .home-ai-model-row {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 /* Calendar's upcoming items are a compact working queue, not another large
@@ -3219,6 +3222,11 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
   font-size: var(--fs-caption);
   cursor: pointer;
 }
+.home-ai-model-status { flex-shrink: 0; color: var(--text-3); font-size: var(--fs-micro); line-height: 1.35; }
+.home-ai-model-status.is-error { padding: 0; border: 0; background: transparent; color: var(--danger); text-align: left; cursor: pointer; }
+.home-ai-model-status.is-error:hover { color: var(--text-1); }
+.ai-model-status { color: var(--text-3); font-size: var(--fs-micro); white-space: nowrap; }
+.ai-model-status.is-error { padding: 0; border: 0; background: transparent; color: var(--danger); cursor: pointer; }
 
 .home-ai-reply {
   flex: 1;
