@@ -1126,8 +1126,18 @@ body[data-theme='hermes'] .ai-brand {
 .scroll-hint {
   position: fixed;
   z-index: 100;
-  width: 2.25rem;
-  height: 2.25rem;
+  /* Keep the hit target a compact circle even if a broad button rule is
+     introduced elsewhere in the shell. These controls must never become a
+     full-width bar. */
+  box-sizing: border-box;
+  width: 2.25rem !important;
+  min-width: 2.25rem !important;
+  max-width: 2.25rem !important;
+  height: 2.25rem !important;
+  min-height: 2.25rem !important;
+  max-height: 2.25rem !important;
+  padding: 0 !important;
+  flex: 0 0 2.25rem !important;
   display: flex;
   align-items: center;
   justify-content: center;
