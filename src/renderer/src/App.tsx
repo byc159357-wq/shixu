@@ -12,11 +12,7 @@ import {
   Sparkle,
   Images,
   SquaresFour,
-  Play,
-  ArrowUp,
-  Stop,
-  FolderSimple,
-  Brain
+  Play
 } from '@phosphor-icons/react'
 import { useAppStore, type Module } from './store'
 import type { IntelligenceSnapshot, SearchResult, WorkMode, AppEntry, BoxKind, WorkspaceContext } from '../../shared/types'
@@ -31,12 +27,13 @@ import { ProjectPage } from './pages/ProjectPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { CalendarPage } from './pages/CalendarPage'
-import { AIPage } from './pages/AIPage'
-import { AIMessagesPage } from './pages/AIMessagesPage'
-import { AIArtifactsPage } from './pages/AIArtifactsPage'
-import { AITasksPage } from './pages/AITasksPage'
+import { HermesPage } from './components/hermes/HermesPage'
+import { HermesFloatingPanel } from './components/hermes/HermesFloatingPanel'
+import { HermesMessagesPage } from './pages/HermesMessagesPage'
+import { HermesArtifactsPage } from './pages/HermesArtifactsPage'
+import { HermesTasksPage } from './pages/HermesTasksPage'
 import { ScenariosPage } from './pages/ScenariosPage'
-import { messageContent, runHermesPrompt, stopHermesPrompt, useHermesStore } from './hermes-core'
+import { useHermesStore } from './components/hermes/HermesStore'
 
 /* ============ TitleBar ============ */
 function TitleBar() {
@@ -166,7 +163,7 @@ const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
       { id: 'scenarios', icon: <Play size={18} />, title: '工作模式', label: '模式' }
     ]
   },
-  { id: 'intelligence', label: 'Intelligence', items: [{ id: 'ai', icon: <Sparkle size={18} />, title: '打开 Hermes 助手', label: 'Hermes' }] },
+  { id: 'intelligence', label: 'Intelligence', items: [{ id: 'hermes', icon: <Sparkle size={18} />, title: '打开 Hermes 助手', label: 'Hermes' }] },
   {
     id: 'system',
     label: 'System',
@@ -185,11 +182,11 @@ function Dock({ onOpenHermes }: { onOpenHermes: () => void }) {
   const renderItem = (n: NavItem) => (
     <button
       key={n.id}
-      className={`dock-item sidebar-nav-item ${module === n.id ? 'active' : ''} ${n.id === 'ai' ? 'hermes-nav-item' : ''}`}
+      className={`dock-item sidebar-nav-item ${module === n.id ? 'active' : ''} ${n.id === 'hermes' ? 'hermes-nav-item' : ''}`}
       title={n.title}
       onClick={() => {
         if (n.id === 'search') openPalette()
-        else if (n.id === 'ai') setModule('ai')
+        else if (n.id === 'hermes') setModule('hermes')
         else setModule(n.id as Module)
       }}
     >
@@ -221,132 +218,6 @@ function Dock({ onOpenHermes }: { onOpenHermes: () => void }) {
         <span className="sidebar-hermes-kbd">Ctrl Space</span>
       </button>
     </nav>
-  )
-}
-
-function HermesAssistant({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const panelRef = useRef<HTMLElement | null>(null)
-  const inputRef = useRef<HTMLTextAreaElement | null>(null)
-  const [input, setInput] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const sessions = useHermesStore((s) => s.sessions)
-  const activeId = useHermesStore((s) => s.activeId)
-  const busyRunId = useHermesStore((s) => s.busyRunId)
-  const workspaceContext = useAppStore((s) => s.workspaceContext)
-  const modelId = useAppStore((s) => s.hermesModelId)
-  const provider = useAppStore((s) => s.hermesModelProvider)
-  const active = sessions.find((session) => session.id === activeId) ?? null
-
-  useEffect(() => {
-    if (!open) return
-    setError(null)
-    requestAnimationFrame(() => inputRef.current?.focus())
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target
-      if (target instanceof Node && panelRef.current && !panelRef.current.contains(target)) onClose()
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [open, onClose])
-
-  const send = async () => {
-    const text = input.trim()
-    if (!text || busyRunId) return
-    setInput('')
-    setError(null)
-    try {
-      await runHermesPrompt({
-        text,
-        provider: provider || 'hermes',
-        model: modelId || undefined,
-        sessionId: activeId
-      })
-    } catch (err) {
-      setError(String((err as Error)?.message ?? err))
-    }
-  }
-
-  if (!open) return null
-  const recent = active?.msgs.slice(-4) ?? []
-  const recentActions = workspaceContext?.recentActions.slice(0, 4) ?? []
-  return (
-    <div className="hermes-floating-layer" role="presentation">
-      <section
-        ref={panelRef}
-        className="hermes-floating"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command Mode Hermes"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <header className="hermes-floating-head">
-          <div className="hermes-floating-title">
-            <span className="hermes-floating-mark"><Sparkle size={15} weight="fill" /></span>
-            <div><strong>Hermes</strong><span>Command Mode</span></div>
-          </div>
-          <div className="hermes-floating-head-actions">
-            <span className="hermes-floating-kbd">Ctrl + Space</span>
-            <button className="hermes-floating-close" onClick={onClose} aria-label="关闭 Hermes"><X size={16} /></button>
-          </div>
-        </header>
-        <div className="hermes-floating-context">
-          <span><FolderSimple size={13} /> {workspaceContext?.currentProject?.name ?? '当前工作区'}</span>
-          <span><Brain size={13} /> {workspaceContext?.currentScene?.name ?? '自由工作'}</span>
-        </div>
-        <div className="hermes-floating-body">
-          {recent.length > 0 ? recent.map((message) => (
-            <div key={message.id} className={`hermes-floating-message ${message.role === 'agent' ? 'is-agent' : 'is-user'}`}>
-              <span>{message.role === 'agent' ? 'Hermes' : '你'}</span>
-              <p>{messageContent(message) || message.status || '正在处理…'}</p>
-            </div>
-          )) : (
-            <div className="hermes-floating-empty">
-              <span className="hermes-floating-empty-mark"><Sparkle size={19} weight="fill" /></span>
-              <strong>随时召唤 Hermes</strong>
-              <p>从当前工作继续，或者直接告诉我你要完成什么。</p>
-              <div className="hermes-floating-recent-label">最近操作</div>
-              <div className="hermes-floating-suggestions">
-                {(recentActions.length
-                  ? recentActions.map((action) => action.label)
-                  : ['优化当前页面', '分析项目状态', '继续最近任务']
-                ).slice(0, 4).map((label) => (
-                  <button key={label} onClick={() => setInput(label)}>{label}</button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="hermes-floating-composer">
-          <textarea
-            ref={inputRef}
-            value={input}
-            rows={1}
-            placeholder="Ask Hermes..."
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-                event.preventDefault()
-                void send()
-              }
-              if (event.key === 'Escape') onClose()
-            }}
-          />
-          {busyRunId ? (
-            <button className="hermes-floating-send is-stop" onClick={() => void stopHermesPrompt()} aria-label="停止 Hermes">
-              <Stop size={15} weight="fill" />
-            </button>
-          ) : (
-            <button className="hermes-floating-send" onClick={() => void send()} disabled={!input.trim()} aria-label="提交任务">
-              <ArrowUp size={16} weight="bold" />
-            </button>
-          )}
-        </div>
-        <footer className="hermes-floating-foot">
-          <span>Ctrl + Enter 发送</span>
-          {error ? <span className="hermes-floating-error">{error}</span> : <span>共享当前项目上下文</span>}
-        </footer>
-      </section>
-    </div>
   )
 }
 
@@ -386,14 +257,14 @@ function Workspace() {
         return <LibraryPage />
       case 'calendar':
         return <CalendarPage />
-      case 'ai':
-        return <AIPage />
-      case 'aiMessages':
-        return <AIMessagesPage />
-      case 'aiArtifacts':
-        return <AIArtifactsPage />
-      case 'aiTasks':
-        return <AITasksPage />
+      case 'hermes':
+        return <HermesPage />
+      case 'hermesMessages':
+        return <HermesMessagesPage />
+      case 'hermesArtifacts':
+        return <HermesArtifactsPage />
+      case 'hermesTasks':
+        return <HermesTasksPage />
       case 'scenarios':
         return <ScenariosPage />
     }
@@ -709,7 +580,10 @@ export default function App() {
   const refreshAfterFilesChange = useAppStore((s) => s.refreshAfterFilesChange)
   const loadWorkspaceContext = useAppStore((s) => s.loadWorkspaceContext)
   const loadIntelligence = useAppStore((s) => s.loadIntelligence)
-  const loadHermesModels = useAppStore((s) => s.loadHermesModels)
+  const refreshHermesModels = useHermesStore((s) => s.refreshModels)
+  const setHermesContext = useHermesStore((s) => s.setContext)
+  const workspaceContext = useAppStore((s) => s.workspaceContext)
+  const currentFiles = useAppStore((s) => s.files)
   const appShellRef = useRef<HTMLDivElement>(null)
   const [showStartup, setShowStartup] = useState(true)
   const [hermesOpen, setHermesOpen] = useState(false)
@@ -781,12 +655,35 @@ export default function App() {
     void loadIntelligence()
   }, [loadIntelligence])
 
-  // Warm the shared Hermes model roster once at shell startup. The model
-  // picker and compact Hermes panel then consume the same Zustand state and
-  // never race separate requests with different selections.
+  // Warm the shared Hermes model roster once at shell startup. Full Hermes,
+  // the compact panel and the legacy workspace widget all consume this state.
   useEffect(() => {
-    void loadHermesModels()
-  }, [loadHermesModels])
+    void refreshHermesModels()
+  }, [refreshHermesModels])
+
+  // Hermes receives a live snapshot of the user's current work without
+  // replacing the durable WorkspaceContext source in the main process.
+  useEffect(() => {
+    const pageLabels: Partial<Record<Module, string>> = {
+      home: 'Today',
+      workspace: 'Workspace',
+      projects: 'Project Space',
+      library: 'Library',
+      calendar: 'Calendar',
+      scenarios: 'Work Modes',
+      settings: 'Settings'
+    }
+    const page = pageLabels[module]
+    const context = workspaceContext
+    setHermesContext({
+      ...(page ? { currentPage: page } : {}),
+      currentProject: context?.currentProject ?? null,
+      currentMode: context?.currentScene?.name ?? '自由工作',
+      recentFiles: context?.recentFiles ?? [],
+      focusTask: context?.focusTask ?? null,
+      fileCount: currentFiles.length || context?.recentFiles.length || 0
+    })
+  }, [module, workspaceContext, currentFiles.length, setHermesContext])
 
   // Load email config (then inbox count/list) on startup
   const loadEmailInfo = useAppStore((s) => s.loadEmailInfo)
@@ -863,7 +760,7 @@ export default function App() {
         <CommandPalette />
         <ContextMenuOverlay />
         <ToastStack />
-        <HermesAssistant open={hermesOpen} onClose={() => setHermesOpen(false)} />
+        <HermesFloatingPanel open={hermesOpen} onClose={() => setHermesOpen(false)} />
       </div>
       {showStartup && (
         <StartupIntro

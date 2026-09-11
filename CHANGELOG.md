@@ -4,6 +4,16 @@
 
 ## [未发布]
 
+## [0.8.0] - 2026-09-11
+
+### 重构
+
+- Hermes 快捷助手改为覆盖当前工作页面的右侧 Floating Panel，支持点击外部、Escape 和关闭按钮退出。
+- Full Hermes 与 Floating Hermes 共享 Composer、会话、当前项目上下文和模型状态。
+- 新增 Hermes 主题 Token、上下文预览、固定快捷操作和响应卡片，移除居中 Command Mode、技能标签墙与聊天气泡。
+- 统一 Hermes Zustand Store，保留 `wd_agent_sessions_v1`、旧产物和定时任务数据，并兼容自由布局中的 `ai` Widget。
+- Hermes 内部页面与辅助模块统一使用 Hermes 命名，版本升级到 v0.8.0。
+
 ## [0.7.0] - 2026-09-11
 
 ### 重构

@@ -29,7 +29,8 @@ import {
 } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
-import type { HermesStreamEvent, LayoutItem, LibraryFile, MailDetailResult, MailPreview, RecentOpenItem, SystemStats, WeatherNow, WidgetKind, WorkMode } from '../../../shared/types'
+import { messageContent, useHermesStore } from './hermes/HermesStore'
+import type { LayoutItem, LibraryFile, MailDetailResult, MailPreview, RecentOpenItem, SystemStats, WeatherNow, WidgetKind, WorkMode } from '../../../shared/types'
 import {
   SoftwareWidget,
   ImagesWidget,
@@ -1233,16 +1234,20 @@ export function AIWidget() {
   const [input, setInput] = useState('')
   const [reply, setReply] = useState('在这里直接向 Hermes 提问。')
   const [busy, setBusy] = useState(false)
-  const hermesModels = useAppStore((s) => s.hermesModels)
-  const selectedModel = useAppStore((s) => s.hermesModelId)
-  const modelStatus = useAppStore((s) => s.hermesModelStatus)
-  const modelError = useAppStore((s) => s.hermesModelError)
-  const modelProvider = useAppStore((s) => s.hermesModelProvider)
-  const loadHermesModels = useAppStore((s) => s.loadHermesModels)
-  const setHermesModel = useAppStore((s) => s.setHermesModel)
-  const busyRef = useRef(false)
-  const streamTextRef = useRef(false)
-  const provider = localStorage.getItem('wd_agent_tool') || 'hermes'
+  const hermesModel = useHermesStore((s) => s.model)
+  const activeId = useHermesStore((s) => s.activeId)
+  const conversation = useHermesStore((s) => s.conversation)
+  const sharedBusyRunId = useHermesStore((s) => s.busyRunId)
+  const sendPrompt = useHermesStore((s) => s.sendPrompt)
+  const hermesModels = hermesModel.models
+  const selectedModel = hermesModel.selectedId
+  const modelStatus = hermesModel.status
+  const modelError = hermesModel.error
+  const modelProvider = hermesModel.provider
+  const loadHermesModels = useHermesStore((s) => s.refreshModels)
+  const setHermesModel = useHermesStore((s) => s.setModel)
+  const provider = hermesModel.provider || 'hermes'
+  const isBusy = busy || !!sharedBusyRunId
   const modelOptions: SelectOption[] = hermesModels.map((m) => {
     const label = m.name || m.id
     const separator = label.indexOf(' · ')
@@ -1254,79 +1259,28 @@ export function AIWidget() {
   }, [loadHermesModels, modelProvider, modelStatus, provider])
 
   useEffect(() => {
-    const off = window.workdeck?.agent?.onEvent?.((ev: HermesStreamEvent) => {
-      if (!busyRef.current) return
-      if (ev.type === 'text' && ev.text) {
-        const firstChunk = !streamTextRef.current
-        streamTextRef.current = true
-        setReply((prev) => (firstChunk ? ev.text : prev + ev.text))
-      } else if (ev.type === 'status' && ev.status) {
-        if (!streamTextRef.current) setReply(ev.status)
-      } else if (ev.type === 'error') {
-        setReply(ev.message || 'Hermes 暂时无法回复')
-      } else if (ev.type === 'done' && ev.finalText?.trim() && !streamTextRef.current) {
-        setReply(ev.finalText.trim())
-      }
-    })
-    return () => off?.()
-  }, [])
+    const latest = [...conversation].reverse().find((message) => message.role === 'agent')
+    const text = latest ? messageContent(latest) : ''
+    if (text) setReply(text)
+  }, [conversation])
 
   const send = async () => {
     const text = input.trim()
-    if (!text || busyRef.current) return
-    const agent = window.workdeck?.agent
-    if (!agent) {
-      setReply('未检测到 Hermes，请先启动本地 Agent。')
-      return
-    }
+    if (!text || isBusy) return
 
     setInput('')
     setReply('正在思考…')
     setBusy(true)
-    busyRef.current = true
-    streamTextRef.current = false
-    const provider = localStorage.getItem('wd_agent_tool') || 'hermes'
-    let model = selectedModel || localStorage.getItem('wd_agent_model') || undefined
-    let availableModels: string[] = []
     try {
-      // Resolve the live roster through the shared Zustand loader before each
-      // compact-card request. This also replaces stale selections after a
-      // provider refresh or an expired model window.
       await loadHermesModels(provider)
-      const latest = useAppStore.getState()
-      availableModels = latest.hermesModels.map((m) => m.id).filter(Boolean)
-      if (!model || !availableModels.includes(model)) model = latest.hermesModelId || availableModels[0]
-      if (model) setHermesModel(model)
-
-      const run = (modelId?: string) => agent.send(text, {
-        provider,
-        model: modelId,
-        sessionKey: 'home-ai-widget'
+      const latest = useHermesStore.getState().model
+      const result = await sendPrompt({
+        text,
+        provider: latest.provider || provider,
+        model: latest.selectedId || selectedModel || undefined,
+        sessionId: activeId
       })
-
-      let finalText: string
-      try {
-        finalText = await run(model)
-      } catch (firstError) {
-        const message = String(firstError)
-        const expired = /free period has ended|select a different model|HTTP 404/i.test(message)
-        const alternatives = availableModels
-          .filter((id) => id !== model)
-          .sort((a, b) => Number(/free/i.test(a)) - Number(/free/i.test(b)))
-        if (!expired || alternatives.length === 0) throw firstError
-
-        model = alternatives[0]
-        setHermesModel(model)
-        streamTextRef.current = false
-        setReply('当前模型已失效，正在自动切换模型…')
-        finalText = await run(model)
-      }
-
-      if (finalText?.trim()) {
-        if (!streamTextRef.current) setReply(finalText.trim())
-      } else {
-        setReply((prev) => (!streamTextRef.current ? 'Hermes 已完成，但没有返回文本。' : prev))
-      }
+      setReply(result.finalText.trim() || 'Hermes 已完成，但没有返回文本。')
     } catch (err) {
       const clean = String(err).replace(
         /^Error:\s*Error invoking remote method '[^']+':\s*(?:Error:\s*)?/,
@@ -1334,11 +1288,10 @@ export function AIWidget() {
       )
       setReply(
         /free period has ended|select a different model|HTTP 404/i.test(clean)
-          ? '当前模型的免费使用期已结束。请在 AI 页面切换一个可用模型后重试。'
+          ? '当前模型的免费使用期已结束。请在 Hermes 页面切换一个可用模型后重试。'
           : clean || '发送失败，请稍后重试。'
       )
     } finally {
-      busyRef.current = false
       setBusy(false)
     }
   }
@@ -1348,9 +1301,9 @@ export function AIWidget() {
       <div className="home-ai-model-row">
         <select
           className="input home-ai-model-select"
-          aria-label="选择 AI 模型"
+          aria-label="选择 Hermes 模型"
           value={modelStatus === 'success' ? selectedModel : ''}
-          disabled={busy || modelStatus !== 'success'}
+          disabled={isBusy || modelStatus !== 'success'}
           onChange={(event) => {
             const value = event.target.value
             setHermesModel(value)
@@ -1377,19 +1330,19 @@ export function AIWidget() {
         <input
           className="input"
           value={input}
-          placeholder="问 AI…"
-          disabled={busy}
+          placeholder="问 Hermes…"
+          disabled={isBusy}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) void send()
           }}
-          aria-label="向 AI 提问"
+          aria-label="向 Hermes 提问"
         />
         <button
           className="home-ai-send"
-          disabled={busy || !input.trim()}
+          disabled={isBusy || !input.trim()}
           onClick={() => void send()}
-          aria-label={busy ? 'AI 正在回复' : '发送'}
+          aria-label={busy ? 'Hermes 正在回复' : '发送'}
         >
           <PaperPlaneTilt size={15} weight="fill" />
         </button>
