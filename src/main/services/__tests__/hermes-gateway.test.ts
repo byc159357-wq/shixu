@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { parseDashboardToken, parseGatewayModels, pickGatewayPort } from '../hermes-gateway.service'
+import {
+  extractGatewayText,
+  normalizeGatewayEvent,
+  parseDashboardToken,
+  parseGatewayModels,
+  pickGatewayPort
+} from '../hermes-gateway.service'
 
 describe('Hermes native gateway helpers', () => {
   it('extracts the loopback dashboard token without persisting it', () => {
@@ -73,5 +79,36 @@ describe('Hermes native gateway helpers', () => {
         { id: 'gateway-safe', name: 'gateway-safe' }
       ]
     })
+  })
+
+  it('normalizes live, method-shaped, and replayed event frames', () => {
+    expect(normalizeGatewayEvent({
+      jsonrpc: '2.0',
+      method: 'event',
+      params: { type: 'message.delta', session_id: 'runtime-1', seq: 7, payload: { text: '你好' } }
+    })).toEqual({
+      type: 'message.delta',
+      session_id: 'runtime-1',
+      seq: 7,
+      payload: { text: '你好' }
+    })
+    expect(normalizeGatewayEvent({
+      method: 'message_completed',
+      params: { sessionId: 'runtime-1', data: { rendered: '完成' } }
+    })).toEqual({
+      type: 'message.complete',
+      session_id: 'runtime-1',
+      payload: { rendered: '完成' }
+    })
+    expect(normalizeGatewayEvent({ type: 'message.delta', sessionId: 'runtime-2', text: '兼容' })).toEqual({
+      type: 'message.delta',
+      session_id: 'runtime-2',
+      payload: { type: 'message.delta', sessionId: 'runtime-2', text: '兼容' }
+    })
+  })
+
+  it('extracts text from nested Gateway content and history messages', () => {
+    expect(extractGatewayText({ content: [{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }] })).toBe('ab')
+    expect(extractGatewayText({ response: { rendered: '已完成' } })).toBe('已完成')
   })
 })

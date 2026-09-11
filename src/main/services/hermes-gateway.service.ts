@@ -14,6 +14,7 @@ type GatewayEvent = {
   type?: string
   session_id?: string
   payload?: Record<string, unknown>
+  seq?: number
 }
 
 type ActiveRun = {
@@ -21,6 +22,7 @@ type ActiveRun = {
   resolve: (text: string) => void
   reject: (error: Error) => void
   timer: NodeJS.Timeout
+  recovering?: boolean
 }
 
 type GatewaySession = { id: string; model?: string }
@@ -122,6 +124,109 @@ export function parseGatewayModels(payload: any): AgentModelList {
   return { models, currentModelId: current && seen.has(current) ? current : models[0]?.id ?? null }
 }
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** Extract text from Gateway payloads across Hermes protocol versions. */
+export function extractGatewayText(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) return value.map(extractGatewayText).join('')
+  if (!isRecord(value)) return ''
+
+  for (const key of ['text', 'rendered', 'delta', 'content', 'message', 'error', 'response', 'answer', 'reply', 'chunk']) {
+    if (value[key] === undefined) continue
+    const text = extractGatewayText(value[key])
+    if (text) return text
+  }
+  return ''
+}
+
+const GATEWAY_EVENT_METHODS = new Set([
+  'approval.request',
+  'error',
+  'message.complete',
+  'message.delta',
+  'message.start',
+  'session.info',
+  'status.update',
+  'tool.complete',
+  'tool.progress',
+  'tool.start'
+])
+
+const GATEWAY_EVENT_TYPES = new Set([...GATEWAY_EVENT_METHODS, 'gateway.ready'])
+
+function normalizeGatewayType(raw: unknown): string {
+  const input = String(raw ?? '').trim()
+  if (!input) return ''
+  const compact = input.toLowerCase().replace(/[_/]/g, '.')
+  if (compact === 'message.completed' || compact === 'message.done' || compact === 'message.final') return 'message.complete'
+  if (compact === 'text.delta' || compact === 'assistant.message.delta') return 'message.delta'
+  if (compact === 'assistant.message.complete') return 'message.complete'
+  if (compact === 'status' || compact === 'run.status') return 'status.update'
+  if (compact === 'tool.started' || compact === 'tool.generating') return 'tool.start'
+  if (compact === 'tool.finished') return 'tool.complete'
+  return compact
+}
+
+function sessionIdFrom(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (!isRecord(value)) continue
+    for (const key of ['session_id', 'sessionId', 'sid', 'conversation_id', 'conversationId']) {
+      const candidate = value[key]
+      if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
+    }
+  }
+  return undefined
+}
+
+/** Normalize live, method-shaped, and replayed Gateway notifications. */
+export function normalizeGatewayEvent(frame: unknown): GatewayEvent | null {
+  if (!isRecord(frame)) return null
+  const method = typeof frame.method === 'string' ? frame.method : ''
+  const params = isRecord(frame.params) ? frame.params : {}
+  const nested = method === 'event'
+    ? params
+    : isRecord(params.event)
+      ? params.event
+      : isRecord(params.data)
+        ? params.data
+        : isRecord(params.update)
+          ? params.update
+          : isRecord(frame.event)
+            ? frame.event
+            : frame
+  const normalizedMethod = normalizeGatewayType(method)
+  const methodType = GATEWAY_EVENT_TYPES.has(normalizedMethod) ? normalizedMethod : ''
+  const type = normalizeGatewayType(nested.type ?? nested.event_type ?? nested.eventType ?? methodType)
+  if (!type) return null
+
+  const rawPayload = nested.payload ?? nested.data ?? nested.update
+  const payload = isRecord(rawPayload) ? rawPayload : nested
+  const sid = sessionIdFrom(nested, params, payload)
+  const rawSeq = nested.seq ?? frame.seq
+  const seq = typeof rawSeq === 'number' && Number.isFinite(rawSeq) ? rawSeq : undefined
+  return { type, session_id: sid, payload, ...(seq === undefined ? {} : { seq }) }
+}
+
+function latestAssistantText(value: unknown): string {
+  const root = isRecord(value) && value.result !== undefined ? value.result : value
+  if (isRecord(root) && Array.isArray(root.messages)) {
+    for (let i = root.messages.length - 1; i >= 0; i -= 1) {
+      const message = root.messages[i]
+      if (!isRecord(message)) continue
+      const role = String(message.role ?? message.author ?? message.type ?? '').toLowerCase()
+      if (!/assistant|agent|model|hermes/.test(role)) continue
+      const text = extractGatewayText(message.content ?? message)
+      if (text.trim()) return text.trim()
+    }
+  }
+  return ''
+}
+
 /**
  * Connects to the already-running Hermes Desktop gateway over its native
  * WebSocket JSON-RPC protocol. This is the same session.create/prompt.submit
@@ -136,8 +241,12 @@ export class HermesGatewayService {
   private nextId = 0
   private pending = new Map<number, RpcPending>()
   private sessions = new Map<string, GatewaySession>()
+  /** Hermes exposes both a short runtime id and a durable stored id on some versions. */
+  private sessionAliases = new Map<string, string>()
   private activeRuns = new Map<string, ActiveRun>()
   private approvals = new Map<string, string>()
+  private lastSeenSeq = new Map<string, number>()
+  private replayEpoch: string | null = null
   private direct = false
 
   constructor(
@@ -220,8 +329,11 @@ export class HermesGatewayService {
         ...(requestedModel ? { model: requestedModel } : {}),
         ...(previousMessages.length ? { messages: previousMessages } : {})
       }, 60_000)
-      const sid = String(created?.session_id ?? '')
+      const sid = String(created?.session_id ?? created?.sessionId ?? created?.id ?? '')
       if (!sid) throw new Error('Hermes Gateway 未返回会话 id')
+      for (const alias of [created?.stored_session_id, created?.storedSessionId, created?.sessionId]) {
+        if (alias && String(alias) !== sid) this.sessionAliases.set(String(alias), sid)
+      }
       session = { id: sid, model: requestedModel ?? created?.info?.model }
       this.sessions.set(key, session)
       this.push({ type: 'session', sessionId: sid })
@@ -238,7 +350,13 @@ export class HermesGatewayService {
       this.activeRuns.set(sid, { chunks: [], resolve, reject, timer })
     })
 
-    void this.rpc('prompt.submit', { session_id: sid, text }, 600_000).catch((error) => {
+    void this.rpc<any>('prompt.submit', { session_id: sid, text }, 600_000).then((response) => {
+      // prompt.submit normally returns only {status:"streaming"}. A few
+      // Gateway builds include the completed answer in the RPC response, so
+      // consume it when present instead of waiting forever for an event.
+      const finalText = extractGatewayText(response).trim()
+      if (finalText) this.finishRun(sid, finalText)
+    }).catch((error) => {
       const run = this.activeRuns.get(sid)
       if (!run) return
       clearTimeout(run.timer)
@@ -299,6 +417,7 @@ export class HermesGatewayService {
       socket.once('open', () => {
         clearTimeout(timer)
         this.direct = true
+        void this.replayMissedEvents()
         resolve()
       })
       socket.on('message', (data) => this.handleFrame(String(data)))
@@ -336,62 +455,177 @@ export class HermesGatewayService {
     }
     if (typeof frame?.id === 'number') {
       const call = this.pending.get(frame.id)
-      if (!call) return
-      clearTimeout(call.timer)
-      this.pending.delete(frame.id)
-      if (frame.error) call.reject(new Error(frame.error.message || 'Hermes Gateway RPC 失败'))
-      else call.resolve(frame.result)
-      return
+      if (call) {
+        clearTimeout(call.timer)
+        this.pending.delete(frame.id)
+        if (frame.error) call.reject(new Error(frame.error.message || 'Hermes Gateway RPC 失败'))
+        else call.resolve(frame.result)
+      }
+      // A few proxy versions attach an id to a notification. Continue below
+      // so the event is not discarded after settling an unrelated RPC.
     }
-    if (frame?.method === 'event') this.handleEvent(frame.params as GatewayEvent)
+    const event = normalizeGatewayEvent(frame)
+    if (!event) return
+    if (event.type === 'gateway.ready') {
+      const epoch = isRecord(event.payload) ? event.payload.replay_epoch : undefined
+      if (typeof epoch === 'string' && epoch) this.adoptReplayEpoch(epoch)
+    }
+    this.recordEventSeq(event)
+    this.handleEvent(event)
   }
 
   private handleEvent(event: GatewayEvent): void {
-    const type = event?.type || ''
-    const sid = event?.session_id || ''
+    const type = normalizeGatewayType(event?.type)
     const payload = event?.payload ?? {}
-    const run = sid ? this.activeRuns.get(sid) : undefined
+    const explicitSid = event?.session_id?.trim() || ''
+    const canonicalSid = explicitSid ? (this.sessionAliases.get(explicitSid) ?? explicitSid) : ''
+    const resolved = this.resolveActiveRun(canonicalSid, explicitSid)
+    const sid = resolved?.sid ?? canonicalSid
+    const run = resolved?.run
+
+    // Runtime/stored id aliases are also advertised in session.info payloads.
+    if (explicitSid && isRecord(payload)) {
+      const stored = payload.stored_session_id ?? payload.storedSessionId
+      if (stored && String(stored) !== explicitSid) this.sessionAliases.set(String(stored), explicitSid)
+    }
+
+    if (type === 'session.info' && run && payload.running === false) {
+      // A lost message.complete must not leave the renderer waiting forever.
+      // Hermes persists the turn before emitting running=false, so recover the
+      // final assistant message from the authoritative session history.
+      void this.recoverRun(sid)
+      return
+    }
 
     if (type === 'message.start' && run) {
       this.push({ type: 'status', status: 'Hermes 正在生成…' })
     } else if (type === 'message.delta' && run) {
-      const text = String(payload.text ?? '')
+      const text = extractGatewayText(payload)
       if (text) {
         run.chunks.push(text)
         this.push({ type: 'text', text })
       }
     } else if (type === 'status.update' && run) {
-      const status = String(payload.text ?? '')
+      const status = extractGatewayText(payload)
       if (status) this.push({ type: 'status', status })
     } else if ((type === 'tool.start' || type === 'tool.progress') && run) {
-      this.push({ type: 'tool_call', name: String(payload.name ?? payload.tool ?? '工具'), args: payload })
+      this.push({ type: 'tool_call', name: String(payload.name ?? payload.tool ?? payload.title ?? '工具'), args: payload })
     } else if (type === 'tool.complete' && run) {
-      this.push({ type: 'tool_result', name: String(payload.name ?? payload.tool ?? '工具') })
+      this.push({ type: 'tool_result', name: String(payload.name ?? payload.tool ?? payload.title ?? '工具') })
     } else if (type === 'approval.request' && sid) {
-      const requestId = String(payload.request_id ?? '')
+      const requestId = String(payload.request_id ?? payload.requestId ?? '')
       if (!requestId) return
       this.approvals.set(requestId, sid)
       const choices = Array.isArray(payload.choices) ? payload.choices.map(String) : ['once', 'deny']
       this.push({
         type: 'permission',
         requestId,
-        message: String(payload.description ?? payload.command ?? 'Hermes 请求执行操作'),
+        message: String(payload.description ?? payload.command ?? payload.message ?? 'Hermes 请求执行操作'),
         options: choices
       })
     } else if (type === 'message.complete' && run) {
-      clearTimeout(run.timer)
-      this.activeRuns.delete(sid)
-      const streamed = run.chunks.join('').trim()
-      const finalText = String(payload.text ?? payload.rendered ?? '').trim()
-      const answer = finalText || streamed
-      this.push({ type: 'done', finalText: streamed ? '' : finalText })
-      run.resolve(answer)
+      this.finishRun(sid, extractGatewayText(payload).trim())
     } else if (type === 'error' && run) {
       clearTimeout(run.timer)
       this.activeRuns.delete(sid)
-      const error = new Error(String(payload.message ?? payload.error ?? 'Hermes Gateway 运行失败'))
+      const error = new Error(extractGatewayText(payload) || 'Hermes Gateway 运行失败')
       this.push({ type: 'error', message: error.message })
       run.reject(error)
+    }
+  }
+
+  private resolveActiveRun(canonicalSid: string, explicitSid: string): { sid: string; run: ActiveRun } | null {
+    if (canonicalSid) {
+      const run = this.activeRuns.get(canonicalSid)
+      if (run) return { sid: canonicalSid, run }
+      // Do not attach a named event from another Hermes session to the only
+      // Shixu run. The event may belong to the user's separate Hermes window.
+      if (explicitSid) return null
+    }
+    if (this.activeRuns.size !== 1) return null
+    const entry = this.activeRuns.entries().next().value as [string, ActiveRun] | undefined
+    return entry ? { sid: entry[0], run: entry[1] } : null
+  }
+
+  private finishRun(sid: string, finalText = ''): void {
+    const run = this.activeRuns.get(sid)
+    if (!run) return
+    clearTimeout(run.timer)
+    this.activeRuns.delete(sid)
+    const streamed = run.chunks.join('').trim()
+    const answer = finalText.trim() || streamed
+    this.push({ type: 'done', finalText: streamed ? '' : finalText.trim() })
+    run.resolve(answer)
+  }
+
+  private async recoverRun(sid: string): Promise<void> {
+    const run = this.activeRuns.get(sid)
+    if (!run || run.recovering) return
+    run.recovering = true
+    try {
+      // The history write and the running=false notification are normally
+      // ordered, but a busy provider can make the write visible a little later.
+      for (const delay of [0, 150, 500]) {
+        if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
+        if (!this.activeRuns.has(sid)) return
+        try {
+          const history = await this.rpc<any>('session.history', { session_id: sid }, 15_000)
+          const text = latestAssistantText(history)
+          if (text) {
+            this.finishRun(sid, text)
+            return
+          }
+        } catch {
+          // Older Gateway builds may not expose session.history; let the next
+          // attempt or the regular completion event decide the outcome.
+        }
+      }
+      // If streaming text did arrive but only the terminal event was lost,
+      // resolve with that text rather than leaving the panel stuck forever.
+      if (this.activeRuns.has(sid) && run.chunks.length) this.finishRun(sid)
+    } finally {
+      const current = this.activeRuns.get(sid)
+      if (current) current.recovering = false
+    }
+  }
+
+  private recordEventSeq(event: GatewayEvent): void {
+    const sid = event.session_id
+    const seq = event.seq
+    if (!sid || typeof seq !== 'number' || !Number.isFinite(seq)) return
+    const previous = this.lastSeenSeq.get(sid) ?? 0
+    if (seq > previous) this.lastSeenSeq.set(sid, seq)
+  }
+
+  private adoptReplayEpoch(epoch: string): void {
+    if (this.replayEpoch && this.replayEpoch !== epoch) this.lastSeenSeq.clear()
+    this.replayEpoch = epoch
+  }
+
+  private async replayMissedEvents(): Promise<void> {
+    if (!this.lastSeenSeq.size || !this.socket || this.socket.readyState !== WebSocket.OPEN) return
+    const entries = [...this.lastSeenSeq.entries()]
+    const results = await Promise.allSettled(
+      entries.map(async ([sid, lastSeen]) => {
+        const result = await this.rpc<any>('session.events.since', { session_id: sid, last_seen: lastSeen }, 15_000)
+        const epoch = typeof result?.epoch === 'string' ? result.epoch : ''
+        if (epoch && this.replayEpoch && epoch !== this.replayEpoch) {
+          this.adoptReplayEpoch(epoch)
+          return []
+        }
+        return Array.isArray(result?.events) ? result.events : []
+      })
+    )
+    for (const result of results) {
+      if (result.status !== 'fulfilled') continue
+      for (const raw of result.value) {
+        const event = normalizeGatewayEvent(raw)
+        if (!event) continue
+        const previous = event.session_id ? (this.lastSeenSeq.get(event.session_id) ?? 0) : 0
+        if (event.seq !== undefined && event.seq <= previous) continue
+        this.recordEventSeq(event)
+        this.handleEvent(event)
+      }
     }
   }
 
@@ -401,6 +635,7 @@ export class HermesGatewayService {
     this.socketUrl = null
     this.direct = false
     this.sessions.clear()
+    this.sessionAliases.clear()
     if (socket && socket.readyState === WebSocket.OPEN) socket.close()
     for (const call of this.pending.values()) {
       clearTimeout(call.timer)
