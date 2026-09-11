@@ -4,6 +4,12 @@
 
 ## [未发布]
 
+## [0.13.1] - 2026-09-11
+
+### 修复
+
+- “重启更新”使用静默安装参数，点击一次后自动重启并完成 NSIS 安装，不再弹出需要再次确认的安装步骤。
+
 ## [0.13.0] - 2026-09-11
 
 ### 重构
@@ -323,6 +329,7 @@
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
 [未发布]: https://github.com/byc159357-wq/shixu/compare/v0.4.2...HEAD
+[0.13.1]: https://github.com/byc159357-wq/shixu/releases/tag/v0.13.1
 [0.13.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.13.0
 [0.12.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.12.0
 [0.11.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.11.0

@@ -86,7 +86,7 @@ export class UpdateService {
     }
     // Force the installer to run after the app restarts. This avoids the
     // second, external installer click that users previously encountered.
-    autoUpdater.quitAndInstall(false, true)
+    autoUpdater.quitAndInstall(true, true)
   }
 
   status(): UpdateStatus {
