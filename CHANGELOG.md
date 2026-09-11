@@ -4,6 +4,16 @@
 
 ## [未发布]
 
+## [0.7.0] - 2026-09-11
+
+### 重构
+
+- Hermes 完整页面升级为三栏 AI 工作中心，分离工作区、会话内容和当前上下文。
+- 新增 Project、File、Memory 上下文入口与快捷操作区域，保留 Markdown、代码和工具执行输出。
+- 抽离共享 Hermes Core，会话、当前线程、流式事件和运行状态在完整页面与 Command Mode 间同步。
+- 发送任务时将 WorkspaceContext 与 Project Memory 摘要注入 Hermes 请求上下文。
+- 新增 Ctrl + Space 居中唤醒的 Hermes Command Mode，支持点击外部或 Escape 关闭。
+
 ## [0.6.1] - 2026-09-11
 
 ### 修复

@@ -5,13 +5,21 @@ import {
   Package, Clock, Gear, Play, GitBranch, Globe, Files, Stop, Copy, Trash, ShieldCheck,
   Code, FileText, Image, VideoCamera, ChartLine, Cloud, PencilRuler, Browser,
   PenNib, PresentationChart, Table, Money, Newspaper, HardDrives, CaretRight,
-  ArrowClockwise, FolderSimple
+  ArrowClockwise, FolderSimple, Sparkle, FolderOpen, Brain, Lightning, ArrowUpRight
 } from '@phosphor-icons/react'
-import type { HermesStreamEvent, AgentProviderInfo } from '../../../shared/types'
+import type { AgentProviderInfo } from '../../../shared/types'
 import { Select, type SelectOption } from '../components/ui'
 import { useAppStore } from '../store'
+import {
+  inferSessionKind,
+  runHermesPrompt,
+  stopHermesPrompt,
+  useHermesStore,
+  type HermesMessage as Msg,
+  type HermesSession as Session,
+  type HermesSessionKind as SessionKind
+} from '../hermes-core'
 
-const SESSION_KEY = 'wd_agent_sessions_v1'
 const MODEL_KEY = 'wd_agent_model'
 const TOOL_KEY = 'wd_agent_tool'
 const RELOAD_HINT = '未检测到 Hermes，请确认已安装本地 Agent.'
@@ -79,54 +87,6 @@ const SKILLS: SkillItem[] = [
   { id: 'github-ops', icon: <GitBranch size={14} />, name: 'GitHub 操作', desc: 'PR、Issue、仓库管理', prompt: '请帮我处理这个 GitHub 操作：', category: 'deploy' }
 ]
 
-type StepTag = 'tool' | 'text' | 'error' | 'permission'
-interface Step {
-  id: string
-  tag: StepTag
-  text: string
-  requestId?: string
-}
-interface Msg {
-  id: string
-  role: 'user' | 'agent'
-  text?: string
-  status?: string
-  steps?: Step[]
-  ts: number
-}
-interface Session {
-  id: string
-  title: string
-  kind?: SessionKind
-  pinned?: boolean
-  msgs: Msg[]
-  ts: number
-}
-
-type SessionKind = 'project' | 'chat'
-
-let uid = 0
-const nid = () => `m${Date.now().toString(36)}_${++uid}`
-const snid = () => `s${Date.now().toString(36)}_${++uid}`
-
-function loadSessions(): Session[] {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY)
-    const arr = raw ? (JSON.parse(raw) as Session[]) : []
-    return Array.isArray(arr)
-      ? arr.map((s) => ({ ...s, kind: s.kind ?? inferSessionKind(s.msgs?.[0]?.text ?? s.title) }))
-      : []
-  } catch {
-    return []
-  }
-}
-function saveSessions(list: Session[]) {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(list))
-  } catch {
-    /* ignore quota errors */
-  }
-}
 function loadTool(): string {
   try {
     const v = localStorage.getItem(TOOL_KEY)
@@ -144,24 +104,6 @@ function saveTool(v: string) {
   }
 }
 
-function sessionTitle(first: string): string {
-  const t = first.trim()
-  return t.length > 22 ? t.slice(0, 22) + '…' : t
-}
-function inferSessionKind(text: string): SessionKind {
-  const value = text.trim().toLowerCase()
-  if (!value) return 'chat'
-  const looksLikePath = /(?:[a-z]:\\|\/(?:src|app|packages?|components?|public|tests?)\/|\.(?:tsx?|jsx?|vue|py|java|go|rs|json|ya?ml|md)\b)/i.test(value)
-  const projectIntent = /项目|代码|仓库|文件|目录|组件|页面|界面|ui|ux|前端|后端|接口|数据库|脚本|测试|构建|部署|重构|修复|优化|实现|开发|设计稿|git|github|commit|pull request|package\.json/i.test(value)
-  return looksLikePath || projectIntent ? 'project' : 'chat'
-}
-function messageContent(msg: Msg): string {
-  return (
-    msg.steps?.filter((s) => s.tag === 'text').map((s) => s.text).join('\n').trim() ||
-    (msg.text === '（Hermes 未返回文本）' ? '' : msg.text?.trim()) ||
-    ''
-  )
-}
 const modelLabel = (id: string, opts: SelectOption[]) => {
   const m = opts.find((o) => o.value === id)
   return (m?.shortLabel ?? m?.label) ?? id
@@ -169,9 +111,16 @@ const modelLabel = (id: string, opts: SelectOption[]) => {
 
 export function AIPage() {
   const setModule = useAppStore((s) => s.setModule)
+  const setProjectTab = useAppStore((s) => s.setProjectTab)
+  const workspaceContext = useAppStore((s) => s.workspaceContext)
+  const currentFiles = useAppStore((s) => s.files)
+  const currentProjectId = useAppStore((s) => s.currentProjectId)
 
-  const [sessions, setSessions] = useState<Session[]>(loadSessions)
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const sessions = useHermesStore((s) => s.sessions)
+  const activeId = useHermesStore((s) => s.activeId)
+  const busyRunId = useHermesStore((s) => s.busyRunId)
+  const setActiveId = useHermesStore((s) => s.setActiveId)
+  const updateSessions = useHermesStore((s) => s.updateSessions)
   const [query, setQuery] = useState('')
   const [input, setInput] = useState('')
   const [hermesOk, setHermesOk] = useState<boolean | null>(null)
@@ -183,7 +132,6 @@ export function AIPage() {
   const [toolId, setToolId] = useState<string>(loadTool)
   const [tools, setTools] = useState<AgentProviderInfo[]>(FALLBACK_TOOLS)
   const [dragId, setDragId] = useState<string | null>(null)
-  const [busyRunId, setBusyRunId] = useState<string | null>(null)
   const modelId = useAppStore((s) => s.hermesModelId)
   const hermesModels = useAppStore((s) => s.hermesModels)
   const modelStatus = useAppStore((s) => s.hermesModelStatus)
@@ -202,15 +150,6 @@ export function AIPage() {
       ? '模型加载失败，点击重试'
       : '请先配置 AI 服务'
 
-  const activeIdRef = useRef<string | null>(null)
-  activeIdRef.current = activeId
-  // Always-current view of sessions so async handlers never read a stale closure.
-  const sessionsRef = useRef<Session[]>(sessions)
-  sessionsRef.current = sessions
-  const runIdRef = useRef<string | null>(null)
-  const busyRef = useRef(false)
-  const stoppedRef = useRef(false)
-  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const newSessionKindRef = useRef<SessionKind | null>(null)
@@ -223,32 +162,15 @@ export function AIPage() {
     requestAnimationFrame(() => inputRef.current?.focus())
   }, [])
 
-  // commit: mutate sessions via a functional updater and persist atomically.
-  const commit = useCallback((fn: (prev: Session[]) => Session[]) => {
-    setSessions((prev) => {
-      const next = fn(prev)
-      saveSessions(next)
-      return next
-    })
-  }, [])
+  // All session mutations go through the shared Hermes Core and are persisted
+  // once, so Command Mode and the full page always see the same thread.
+  const commit = useCallback((fn: (prev: Session[]) => Session[]) => updateSessions(fn), [updateSessions])
 
   const mutateActive = useCallback(
     (fn: (s: Session) => Session) => {
-      commit((prev) => prev.map((s) => (s.id === activeIdRef.current ? fn(s) : s)))
+      commit((prev) => prev.map((s) => (s.id === activeId ? fn(s) : s)))
     },
-    [commit]
-  )
-  const mutateRun = useCallback(
-    (runId: string, fn: (m: Msg) => Msg) => {
-      // A streamed run belongs to the session where it started. Do not route
-      // through the currently open session: the user may switch threads while
-      // the provider is still producing events.
-      commit((prev) => prev.map((s) => ({
-        ...s,
-        msgs: s.msgs.map((m) => (m.id === runId ? fn(m) : m))
-      })))
-    },
-    [commit]
+    [activeId, commit]
   )
 
   // Open the Hermes desktop app so the user can refresh expired credentials.
@@ -261,7 +183,8 @@ export function AIPage() {
     }
   }, [])
 
-  // Hermes availability + streaming bridge.
+  // Hermes availability. Stream events are owned by the shared Hermes Core so
+  // a run started from Command Mode can render here without a second listener.
   useEffect(() => {
     let alive = true
     const agent = window.workdeck?.agent
@@ -287,57 +210,7 @@ export function AIPage() {
         }
       }
     })()
-    const off = (agent?.onEvent ?? hermes?.onEvent)?.((ev: HermesStreamEvent) => {
-      if (!alive) return
-      const runId = runIdRef.current
-      if (!runId) return
-      mutateRun(runId, (m) => {
-        const steps = [...(m.steps ?? [])]
-        let status: string | undefined = m.status
-        switch (ev.type) {
-          case 'status':
-            status = ev.status
-            break
-          case 'tool_call':
-            steps.push({ id: nid(), tag: 'tool', text: `正在调用 ${ev.name}…` })
-            break
-          case 'tool_result':
-            steps.push({ id: nid(), tag: 'tool', text: `完成 ${ev.name}` })
-            break
-          case 'permission':
-            steps.push({ id: nid(), tag: 'permission', text: ev.message, requestId: ev.requestId })
-            break
-          case 'text':
-            if (ev.text) {
-              const last = steps[steps.length - 1]
-              if (last?.tag === 'text') {
-                steps[steps.length - 1] = { ...last, text: last.text + ev.text }
-              } else {
-                steps.push({ id: nid(), tag: 'text', text: ev.text })
-              }
-            }
-            break
-          case 'error':
-            status = '出错了'
-            steps.push({ id: nid(), tag: 'error', text: ev.message })
-            break
-          case 'done':
-            status = '完成'
-            if (ev.finalText?.trim() && !steps.some((s) => s.tag === 'text' && s.text.trim())) {
-              steps.push({ id: nid(), tag: 'text', text: ev.finalText })
-            }
-            break
-          default:
-            break
-        }
-        return { ...m, status, steps }
-      })
-    })
-    return () => {
-      alive = false
-      off?.()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { alive = false }
   }, [])
 
   // Load the connectable AI-software roster from the main process.
@@ -392,137 +265,28 @@ export function AIPage() {
 
   const send = async (override?: string) => {
     const text = (override ?? input).trim()
-    if (!text || busyRef.current) return
-
-    const agent = window.workdeck?.agent
-    if (!agent) {
-      setHermesReason('Agent API 未暴露')
-      return
-    }
-
-    // Decide the target session from the CURRENT state (no stale closure).
-    const hasActive =
-      !!activeIdRef.current &&
-      sessionsRef.current.some((s) => s.id === activeIdRef.current)
-    const sid = hasActive ? activeIdRef.current! : snid()
-    const sessionKind = hasActive ? undefined : (newSessionKindRef.current ?? inferSessionKind(text))
-    const previous = sessionsRef.current.find((s) => s.id === sid)?.msgs ?? []
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = previous
-      .map((m) => ({
-        role: m.role === 'agent' ? 'assistant' as const : 'user' as const,
-        content: messageContent(m)
-      }))
-      .filter((m) => m.content)
-    messages.push({ role: 'user', content: text })
-
-    const userMsg: Msg = { id: nid(), role: 'user', text, ts: Date.now() }
-    const runId = nid()
-    const agentMsg: Msg = {
-      id: runId,
-      role: 'agent',
-      status: '思考中…',
-      steps: [],
-      ts: Date.now()
-    }
-
-    commit((prev) => {
-      const target = prev.find((s) => s.id === sid)
-      if (target) {
-        return prev.map((s) =>
-          s.id === sid
-            ? {
-                ...s,
-                title: s.msgs.length ? s.title : sessionTitle(text),
-                ts: Date.now(),
-                msgs: [...s.msgs, userMsg, agentMsg]
-              }
-            : s
-        )
-      }
-      return [
-        ...prev,
-        { id: sid, title: sessionTitle(text), kind: sessionKind, msgs: [userMsg, agentMsg], ts: Date.now() }
-      ]
-    })
-    if (!hasActive) setActiveId(sid)
-
-    runIdRef.current = runId
-    setBusyRunId(runId)
-    busyRef.current = true
-    stoppedRef.current = false
+    if (!text || useHermesStore.getState().busyRunId) return
+    const sessionKind = newSessionKindRef.current ?? inferSessionKind(text)
     setInput('')
-
-    // Hermes free models can queue for a minute or more. Show elapsed time so
-    // a healthy but slow request is not mistaken for a dead UI. Sending itself
-    // now owns connection validation, avoiding an extra session warm-up.
-    const startedAt = Date.now()
-    elapsedTimerRef.current = setInterval(() => {
-      const seconds = Math.floor((Date.now() - startedAt) / 1000)
-      mutateRun(runId, (m) => ({
-        ...m,
-        status: seconds >= 30
-          ? `免费模型排队中… 已等待 ${seconds} 秒`
-          : `等待模型响应… ${seconds} 秒`
-      }))
-    }, 5_000)
-
     try {
-      const finalText = await agent.send(text, {
+      await runHermesPrompt({
+        text,
         provider: toolId,
-        model: modelId,
-        sessionKey: sid,
-        messages
-      })
-      if (stoppedRef.current) return
-      // The reply usually arrives earlier through the stream events (text/done).
-      // Only write the promise return value if the stream left nothing usable.
-      mutateRun(runId, (m) => {
-        const hasText = (m.steps ?? []).some((s) => s.tag === 'text' && s.text?.trim()) || m.text?.trim()
-        if (hasText || !finalText?.trim()) return { ...m, status: '完成' }
-        return { ...m, status: '完成', text: finalText }
+        model: modelId || undefined,
+        sessionId: activeId,
+        sessionKind
       })
     } catch (err) {
-      if (stoppedRef.current || !busyRef.current) return
-      // Strip Electron's "Error invoking remote method" boilerplate so the
-      // bubble shows the actionable message, not the IPC plumbing.
-      const clean = String(err).replace(
-        /^Error:\s*Error invoking remote method '[^']+':\s*(?:Error:\s*)?/,
-        ''
-      )
+      const clean = String((err as Error)?.message ?? err)
       if (/超时|模型后端|凭证|登录|未授权|401|断开|connection/i.test(clean)) {
         setReauthMode(true)
         setReauthMsg(clean)
       }
-      mutateRun(runId, (m) => ({
-        ...m,
-        status: '出错了',
-        steps: [...(m.steps ?? []), { id: nid(), tag: 'error', text: clean || String(err) }]
-      }))
-    } finally {
-      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current)
-      elapsedTimerRef.current = null
-      busyRef.current = false
-      runIdRef.current = null
-      setBusyRunId(null)
+      setHermesReason(clean)
     }
   }
 
-  const stopRun = async (runId: string | null) => {
-    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current)
-    elapsedTimerRef.current = null
-    stoppedRef.current = true
-    busyRef.current = false
-    setBusyRunId(null)
-    if (runId) mutateRun(runId, (m) => ({ ...m, status: '已停止' }))
-    try {
-      const agent = window.workdeck?.agent
-      if (agent?.stop) await agent.stop({ provider: toolId })
-      else await window.workdeck?.hermes?.stop()
-    } catch {
-      /* ignore */
-    }
-    runIdRef.current = null
-  }
+  const stopRun = async () => { await stopHermesPrompt() }
 
   const removeSession = (id: string) => {
     commit((prev) => prev.filter((s) => s.id !== id))
@@ -592,10 +356,25 @@ export function AIPage() {
 
   return (
     <main className="workspace ai-page">
-      <div className="sub">选择模型与技能，开始对话</div>
+      <header className="hermes-page-head">
+        <div>
+          <div className="hermes-page-eyebrow"><Sparkle size={13} weight="fill" /> INTELLIGENCE / HERMES</div>
+          <h1>Hermes</h1>
+          <p>把当前工作交给一个理解项目、文件与记忆的 AI 工作助手。</p>
+        </div>
+        <div className="hermes-page-state">
+          <span className={`hermes-state-dot ${hermesOk === false ? 'is-off' : ''}`} />
+          <span>{hermesOk === false ? '需要连接' : '本地 Agent 已连接'}</span>
+          <span className="hermes-page-kbd">Ctrl + Space 唤醒</span>
+        </div>
+      </header>
       <div className="ai-shell">
         {/* ---------- 左：会话 / 技能 ---------- */}
         <aside className="ai-side">
+          <div className="hermes-side-brand">
+            <div className="hermes-side-mark"><Sparkle size={16} weight="fill" /></div>
+            <div><strong>Hermes</strong><span>AI 工作中心</span></div>
+          </div>
           <div className="ai-side-head">
             <div className="ai-seg">
               <button className={`ai-seg-btn ${tab === 'sessions' ? 'active' : ''}`} onClick={() => setTab('sessions')}>
@@ -605,13 +384,14 @@ export function AIPage() {
                 <Wrench size={14} /> 技能
               </button>
             </div>
-            <button className="btn btn-primary ai-new" onClick={() => startNew()}>
-              <Plus size={14} /> 新建
+              <button className="btn btn-primary ai-new" onClick={() => startNew()}>
+              <Plus size={14} /> 新建任务
             </button>
           </div>
 
           {tab === 'sessions' ? (
             <>
+              <div className="hermes-side-label">最近操作</div>
               <div className="ai-quick">
                 <button className="ai-quick-item" onClick={() => setModule('aiMessages')}>
                   <ChatCircleDots size={14} /><span>消息平台</span>
@@ -671,6 +451,18 @@ export function AIPage() {
                   ))}
                 </div>
               </div>
+              <div className="hermes-side-context">
+                <div className="hermes-side-label">知识上下文</div>
+                <button onClick={() => { if (currentProjectId) { setModule('projects'); setProjectTab('overview') } }} disabled={!currentProjectId}>
+                  <FolderOpen size={14} /><span>项目</span><span>{workspaceContext?.currentProject?.name ?? '未选择'}</span>
+                </button>
+                <button onClick={() => setModule('library')}>
+                  <Files size={14} /><span>文件</span><span>{currentFiles.length || workspaceContext?.recentFiles.length || 0}</span>
+                </button>
+                <button onClick={() => { if (currentProjectId) { setModule('projects'); setProjectTab('memory') } }} disabled={!currentProjectId}>
+                  <Brain size={14} /><span>记忆</span><ArrowUpRight size={12} />
+                </button>
+              </div>
             </>
           ) : (
             <SkillsPanel hermesOk={hermesOk} reason={hermesReason} onUse={(p) => startNew(p)} />
@@ -701,7 +493,7 @@ export function AIPage() {
                         busy={m.id === busyRunId}
                         onCopy={copyText}
                         onDelete={deleteMsg}
-                        onStop={() => void stopRun(m.id)}
+                        onStop={() => void stopRun()}
                         onRetry={() => {
                           const prior = [...active.msgs.slice(0, index)].reverse().find((x) => x.role === 'user')
                           if (prior?.text) void send(prior.text)
@@ -720,7 +512,7 @@ export function AIPage() {
                 ref={inputRef}
                 className="palette-input"
                 rows={2}
-                placeholder="描述你的目标，或继续补充要求…"
+                placeholder="Ask Hermes..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -731,7 +523,7 @@ export function AIPage() {
                 }}
               />
               {busyRunId ? (
-                <button className="ai-send ai-send-stop" onClick={() => void stopRun(runIdRef.current)} aria-label="停止生成">
+                <button className="ai-send ai-send-stop" onClick={() => void stopRun()} aria-label="停止生成">
                   <Stop size={16} weight="fill" />
                 </button>
               ) : (
@@ -769,6 +561,7 @@ export function AIPage() {
                 <span className="ai-status-warn">{activeToolNote ?? hermesReason ?? RELOAD_HINT}</span>
               )}
               {reauthFeedback && <span className="ai-reauth-feed">{reauthFeedback}</span>}
+              <span className="hermes-composer-hint">Ctrl + Enter 发送</span>
               <span className="ai-composer-actions">
                 <button className="ai-icon-btn" title="技能" onClick={() => setTab('skills')}>
                   <Wrench size={15} />
@@ -780,6 +573,47 @@ export function AIPage() {
             </div>
           </div>
         </section>
+        <aside className="hermes-context-panel" aria-label="当前 Hermes 上下文">
+          <div className="hermes-context-head">
+            <span className="hermes-context-eyebrow">当前上下文</span>
+            <span className="hermes-context-live"><span /> LIVE</span>
+          </div>
+          <div className="hermes-context-list">
+            <div className="hermes-context-item">
+              <span className="hermes-context-icon"><FolderOpen size={15} /></span>
+              <span><small>项目</small><strong>{workspaceContext?.currentProject?.name ?? '未选择项目'}</strong></span>
+            </div>
+            <div className="hermes-context-item">
+              <span className="hermes-context-icon"><Files size={15} /></span>
+              <span><small>文件</small><strong>{currentFiles.length || workspaceContext?.recentFiles.length || 0} 个最近文件</strong></span>
+            </div>
+            <div className="hermes-context-item">
+              <span className="hermes-context-icon"><Lightning size={15} /></span>
+              <span><small>当前页面</small><strong>Hermes 工作中心</strong></span>
+            </div>
+            <div className="hermes-context-item">
+              <span className="hermes-context-icon"><Brain size={15} /></span>
+              <span><small>工作模式</small><strong>{workspaceContext?.currentScene?.name ?? '自由工作'}</strong></span>
+            </div>
+          </div>
+          <div className="hermes-context-divider" />
+          <div className="hermes-context-section-title">快捷操作</div>
+          <div className="hermes-context-actions">
+            {[
+              { label: '优化当前页面', icon: <Sparkle size={14} /> },
+              { label: '分析项目状态', icon: <Lightning size={14} /> },
+              { label: '生成工作方案', icon: <ArrowUpRight size={14} /> }
+            ].map((action) => (
+              <button key={action.label} onClick={() => startNew(action.label)}>
+                {action.icon}<span>{action.label}</span><ArrowRight size={12} />
+              </button>
+            ))}
+          </div>
+          <div className="hermes-context-note">
+            <span><Brain size={13} /></span>
+            <p>Hermes 会使用当前项目、最近文件、工作模式和本地记忆来理解任务。</p>
+          </div>
+        </aside>
       </div>
     </main>
   )
