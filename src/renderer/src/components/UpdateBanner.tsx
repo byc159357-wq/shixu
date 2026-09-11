@@ -5,8 +5,9 @@ import { useAppStore } from '../store'
 
 /**
  * A small startup notification for releases discovered by electron-updater.
- * The updater remains opt-in: this banner only offers the existing download
- * and restart actions and never starts a download on its own.
+ * The updater remains opt-in: this banner offers download and a single
+ * restart-update action; electron-updater installs the downloaded package
+ * automatically while the app restarts.
  */
 export function UpdateBanner() {
   const status = useAppStore((state) => state.updateStatus)
@@ -40,7 +41,7 @@ export function UpdateBanner() {
       </span>
       <div className="update-banner-copy">
         <strong>{isAvailable ? `发现新版本 v${status.version}` : isDownloaded ? `更新已下载 v${status.version}` : '正在下载更新'}</strong>
-        <span>{isAvailable ? '新版本已准备好，下载后可在退出时安装。' : isDownloaded ? '重启拾序即可完成安装。' : `下载进度 ${status.percent}%`}</span>
+        <span>{isAvailable ? '新版本已准备好，下载后点击重启更新即可自动安装。' : isDownloaded ? '点击重启更新，拾序会自动完成安装。' : `下载进度 ${status.percent}%`}</span>
       </div>
       <div className="update-banner-actions">
         {isAvailable && (
@@ -50,7 +51,7 @@ export function UpdateBanner() {
         )}
         {isDownloaded && (
           <Button size="sm" variant="primary" onClick={() => void installUpdate()}>
-            <Play size={14} weight="fill" />重启安装
+            <Play size={14} weight="fill" />重启更新
           </Button>
         )}
         {isDownloading && <span className="update-banner-progress">{status.percent}%</span>}

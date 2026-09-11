@@ -5,8 +5,8 @@ import { Button } from '../components/ui'
 import { Plus, Trash, PencilLine, X, Check, PlugsConnected, Key, Robot } from '@phosphor-icons/react'
 
 /**
- * 已接入的 AI 软件：让用户注册多个 OpenAI 兼容端点（GLM / DeepSeek / Ollama
- * 本地 / Qwen 等），每个都成为 AI 面板切换器里的一个独立可选项。
+ * 自定义 Agent 连接：让用户注册多个 OpenAI 兼容端点（GLM / DeepSeek /
+ * Ollama 本地 / Qwen 等），每个都成为 Agent Center 可用的连接。
  */
 export function AgentProfilesCard() {
   const pushToast = useAppStore((s) => s.pushToast)
@@ -76,9 +76,9 @@ export function AgentProfilesCard() {
       <div className="card-head">
         <h3>
           <PlugsConnected size={15} style={{ marginRight: 4, verticalAlign: -2 }} />
-          已接入的 AI 软件
+          自定义 Agent 连接
         </h3>
-        <span className="file-meta">多个可切换的 OpenAI 兼容软件 · 在 AI 面板底部自由切换</span>
+        <span className="file-meta">OpenAI 兼容端点统一在这里添加和管理</span>
       </div>
 
       <div className="field">
@@ -130,7 +130,7 @@ export function AgentProfilesCard() {
 
       {profiles.length === 0 ? (
         <div className="file-meta" style={{ padding: '6px 2px' }}>
-          还没有已接入的 AI 软件。在上方添加一个之后，它就会出现在 AI 面板的切换器里。
+          还没有自定义连接。在上方添加一个之后，它会出现在 Agents 的连接列表中。
         </div>
       ) : (
         <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

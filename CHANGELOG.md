@@ -4,6 +4,18 @@
 
 ## [未发布]
 
+## [0.13.0] - 2026-09-11
+
+### 重构
+
+- Agents 工作区升级为连续任务对话窗口：保留用户任务、流式 Agent 响应、工具步骤、权限确认、停止和复制结果。
+- Agent Dock 与悬浮 Assistant 只展示当前连接状态，Agent 切换和连接统一收纳到“Agents 与解析”设置。
+- 新增统一的 Agent 连接与模型设置，保留自定义 OpenAI 兼容端点，并将本地 Workspace 解析配置与 Agent 对话明确分开。
+
+### 修复
+
+- 更新流程改为“重启更新”：安装包下载完成后，点击一次即可由 electron-updater 自动重启并完成安装，无需再次操作外部安装器。
+
 ## [0.12.0] - 2026-09-11
 
 ### 修复
@@ -311,6 +323,7 @@
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
 [未发布]: https://github.com/byc159357-wq/shixu/compare/v0.4.2...HEAD
+[0.13.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.13.0
 [0.12.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.12.0
 [0.11.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.11.0
 [0.10.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.10.0

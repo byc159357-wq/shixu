@@ -4,7 +4,7 @@ import { LLM_PROVIDERS, findProvider, matchProviderByBaseUrl } from '../../../sh
 import { useAppStore } from '../store'
 import { Button, EmptyState, Select } from '../components/ui'
 import { AgentProfilesCard } from './AgentProfilesCard'
-import { HermesAgentSettingsCard } from './HermesAgentSettingsCard'
+import { AgentConnectionsCard } from './AgentConnectionsCard'
 import { Plus, Trash, FileArrowUp, ArrowClockwise, DownloadSimple, Play, Sparkle, FloppyDisk, SignIn, XCircle, ShieldCheck, Envelope, CaretDown, Palette, FolderOpen, TestTube } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 
@@ -29,7 +29,7 @@ const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; hint: strin
   { id: 'appearance', label: '外观', hint: '主题与显示密度', icon: Palette },
   { id: 'files', label: '文件与监控', hint: '监控目录与操作审计', icon: FolderOpen },
   { id: 'email', label: '邮箱', hint: '接入并管理收件箱账号', icon: Envelope },
-  { id: 'ai', label: 'AI 智能', hint: '解析引擎、模型与 API', icon: Sparkle },
+  { id: 'ai', label: 'Agents 与解析', hint: 'Agent 连接、模型与本地解析', icon: Sparkle },
   { id: 'data', label: '数据与更新', hint: '备份、自启、版本更新', icon: ShieldCheck }
 ]
 
@@ -252,9 +252,9 @@ export function SettingsPage() {
           {/* —— AI 智能 —— */}
       {section === 'ai' && (
         <>
-          <HermesAgentSettingsCard />
-          <AiSettingsCard />
+          <AgentConnectionsCard />
           <AgentProfilesCard />
+          <AiSettingsCard />
         </>
       )}
 
@@ -287,7 +287,7 @@ export function SettingsPage() {
                       {updateStatus.state === 'downloaded' && (
                         <button className="mini-btn" onClick={() => void installUpdate()}>
                           <Play size={13} style={{ marginRight: 2, verticalAlign: -2 }} />
-                          重启安装
+                          重启更新
                         </button>
                       )}
                     </span>
@@ -329,7 +329,9 @@ function updateHint(s: UpdateStatus): string {
     case 'error':
       return s.message
     case 'available':
-      return '下载后将在退出时自动安装'
+      return '下载后点击“重启更新”会自动完成安装'
+    case 'downloaded':
+      return '点击“重启更新”后，拾序会自动重启并完成安装'
     default:
       return '自动更新（electron-updater）'
   }
@@ -760,7 +762,7 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-/* ============ AI provider configuration ============ */
+/* ============ Workspace local parsing configuration ============ */
 const PROVIDER_OPTIONS: Array<{ id: AiProviderKind; label: string; hint: string }> = [
   { id: 'off', label: '关闭（规则解析，离线）', hint: '本地规则引擎，无需网络' },
   { id: 'openai-compat', label: 'OpenAI 兼容 API', hint: 'OpenAI / DeepSeek / 各类中转，需 API Key' },
@@ -852,9 +854,9 @@ function AiSettingsCard() {
       <div className="card-head">
         <h3>
           <Sparkle size={15} style={{ marginRight: 4, verticalAlign: -2 }} />
-          AI 智能解析（LLM）
+          Workspace 智能解析
         </h3>
-        <span className="file-meta">未配置时自动使用本地规则引擎</span>
+        <span className="file-meta">只影响本地项目解析，不影响 Agents 对话</span>
       </div>
 
       <div className="field">

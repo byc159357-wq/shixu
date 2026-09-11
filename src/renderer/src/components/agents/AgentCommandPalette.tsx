@@ -1,6 +1,7 @@
 import { ArrowUp, Lightning, MagicWand, PencilSimple, SpinnerGap } from '@phosphor-icons/react'
 import type { KeyboardEvent, RefObject } from 'react'
 import { AgentSelector } from './AgentSelector'
+import { useAgentManager } from './AgentManager'
 
 const actions = [
   ['分析', '分析当前项目和页面状态，列出下一步。', <MagicWand size={14} />],
@@ -10,7 +11,7 @@ const actions = [
 ] as const
 
 export function AgentCommandPalette({
-  value, onChange, onSubmit, busy, inputRef, error, compact = false
+  value, onChange, onSubmit, busy, inputRef, error, compact = false, showAgentSelector = false
 }: {
   value: string
   onChange: (value: string) => void
@@ -19,7 +20,11 @@ export function AgentCommandPalette({
   inputRef?: RefObject<HTMLTextAreaElement | null>
   error?: string | null
   compact?: boolean
+  showAgentSelector?: boolean
 }) {
+  const selectedId = useAgentManager((state) => state.selectedId)
+  const agents = useAgentManager((state) => state.agents)
+  const selected = agents.find((agent) => agent.id === selectedId)
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault()
@@ -27,8 +32,10 @@ export function AgentCommandPalette({
     }
   }
   return <section className={`agent-command ${compact ? 'is-compact' : ''}`} aria-label="Agent 任务输入">
-    {!compact && <div className="agent-command-top"><span className="agent-section-label">任务</span><AgentSelector compact /></div>}
-    {compact && <div className="agent-command-top"><span className="agent-section-label">当前 Agent</span><AgentSelector compact /></div>}
+    <div className="agent-command-top">
+      <span className="agent-section-label">{compact ? '当前 Agent' : '任务'}</span>
+      {showAgentSelector ? <AgentSelector compact /> : <span className="agent-current-agent">{selected?.name ?? '未选择 Agent'}</span>}
+    </div>
     <label className="sr-only" htmlFor={compact ? 'agent-floating-input' : 'agent-center-input'}>输入想完成的工作</label>
     <div className="agent-composer">
       <textarea

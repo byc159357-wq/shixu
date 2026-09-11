@@ -6,7 +6,7 @@ import { EVENTS } from '../ipc/channels'
  * Auto-update bridge (electron-updater, generic provider).
  * - Starts silent check ~4s after app ready.
  * - Never downloads without user action (autoDownload=false) — settings UI
- *   offers 检查更新 / 下载 / 重启安装, and installs on quit once downloaded.
+ *   offers 检查更新 / 下载 / 重启更新, and installs on quit once downloaded.
  * - In dev/smoke (unpacked) runs electron-updater is a no-op that logs a
  *   notice; all events are still forwarded so the UI logic is testable.
  */
@@ -21,6 +21,7 @@ export type UpdateStatus =
 
 export class UpdateService {
   private current: UpdateStatus = { state: 'idle' }
+  private downloaded = false
 
   constructor(private getWindow: () => BrowserWindow | null) {}
 
@@ -30,19 +31,25 @@ export class UpdateService {
     autoUpdater.logger = console
 
     autoUpdater.on('checking-for-update', () => this.emit({ state: 'checking' }))
-    autoUpdater.on('update-available', (info) =>
+    autoUpdater.on('update-available', (info) => {
+      this.downloaded = false
       this.emit({ state: 'available', version: info.version })
-    )
-    autoUpdater.on('update-not-available', () => this.emit({ state: 'not-available' }))
+    })
+    autoUpdater.on('update-not-available', () => {
+      this.downloaded = false
+      this.emit({ state: 'not-available' })
+    })
     autoUpdater.on('download-progress', (p) =>
       this.emit({ state: 'downloading', percent: Math.round(p.percent) })
     )
-    autoUpdater.on('update-downloaded', (info) =>
+    autoUpdater.on('update-downloaded', (info) => {
+      this.downloaded = true
       this.emit({ state: 'downloaded', version: info.version })
-    )
-    autoUpdater.on('error', (err) =>
+    })
+    autoUpdater.on('error', (err) => {
+      this.downloaded = false
       this.emit({ state: 'error', message: String((err as Error)?.message ?? err) })
-    )
+    })
   }
 
   /** Silent check after startup. */
@@ -73,7 +80,13 @@ export class UpdateService {
   }
 
   quitAndInstall(): void {
-    autoUpdater.quitAndInstall()
+    if (!this.downloaded && this.current.state !== 'downloaded') {
+      this.emit({ state: 'error', message: '更新尚未下载完成，请稍候再试' })
+      return
+    }
+    // Force the installer to run after the app restarts. This avoids the
+    // second, external installer click that users previously encountered.
+    autoUpdater.quitAndInstall(false, true)
   }
 
   status(): UpdateStatus {

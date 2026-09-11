@@ -7,23 +7,21 @@ import { AgentCard } from './AgentCard'
 import { AgentCommandPalette } from './AgentCommandPalette'
 import { AgentContext } from './AgentContext'
 import { AgentExecutionRecord } from './AgentExecutionRecord'
-import { AgentSelector } from './AgentSelector'
 import { useAgentManager } from './AgentManager'
 
 function AgentDock() {
   const agents = useAgentManager((state) => state.agents)
   const selectedId = useAgentManager((state) => state.selectedId)
-  const selectAgent = useAgentManager((state) => state.selectAgent)
+  const setModule = useAppStore((state) => state.setModule)
   return <section className="agent-dock" aria-label="可用 Agent">
     <div className="agent-dock-heading"><span className="agent-section-label">可用 Agent</span><span>{agents.filter((agent) => agent.runnable).length} 个已连接</span></div>
-    <div className="agent-dock-list">{agents.map((agent) => <AgentCard key={agent.id} agent={agent} compact selected={agent.id === selectedId} onSelect={() => void selectAgent(agent.id)} />)}</div>
+    <div className="agent-dock-list">{agents.map((agent) => <AgentCard key={agent.id} agent={agent} compact selected={agent.id === selectedId} onSelect={() => setModule('settings')} />)}</div>
   </section>
 }
 
 export function AgentCenter() {
   const agents = useAgentManager((state) => state.agents)
   const selectedId = useAgentManager((state) => state.selectedId)
-  const selectAgent = useAgentManager((state) => state.selectAgent)
   const loadAgents = useAgentManager((state) => state.loadAgents)
   const draft = useAgentManager((state) => state.draft)
   const setDraft = useAgentManager((state) => state.setDraft)
@@ -67,11 +65,13 @@ export function AgentCenter() {
 
     <div className="agent-layout">
       <section className="agent-main-workspace" aria-label="Agent 工作区">
-        <div className="agent-main-head"><div><span className="agent-section-label">当前 Agent</span><h2>{selected?.name ?? '选择 Agent'}</h2></div><AgentSelector /></div>
-        {recommended && recommended.id !== selectedId && <button type="button" className="agent-recommendation" onClick={() => void selectAgent(recommended.id)}><Brain size={16} /><span><strong>推荐使用 {recommended.name}</strong><small>{recommendation?.reason}</small></span><ArrowSquareOut size={14} /></button>}
-        <div className="agent-task-heading"><span className="agent-section-label">当前任务</span><span>{busyRunId ? '正在执行' : selected?.status === 'connected' ? '准备开始' : '等待配置'}</span></div>
-        <AgentCommandPalette value={draft} onChange={setDraft} onSubmit={() => void submit()} busy={!!busyRunId} error={error} />
-        <section className="agent-execution-section"><div className="agent-section-heading"><span className="agent-section-label">执行记录</span>{history.length > 0 && <span>{history.length} 条记录</span>}</div><AgentExecutionRecord messages={conversation} busyRunId={busyRunId} onStop={() => void stopTask()} /></section>
+        <div className="agent-main-head"><div><span className="agent-section-label">当前 Agent</span><h2>{selected?.name ?? '选择 Agent'}</h2><p className="agent-current-agent-detail">{selected?.type ?? '请在设置中选择并连接一个 Agent'}</p></div><Button variant="secondary" onClick={() => setModule('settings')}><GearSix size={15} /> 管理 Agent</Button></div>
+        {recommended && recommended.id !== selectedId && <button type="button" className="agent-recommendation" onClick={() => setModule('settings')}><Brain size={16} /><span><strong>建议在设置中切换到 {recommended.name}</strong><small>{recommendation?.reason}</small></span><ArrowSquareOut size={14} /></button>}
+        <div className="agent-conversation-shell">
+          <div className="agent-task-heading"><span className="agent-section-label">任务会话</span><span>{busyRunId ? '正在执行' : selected?.status === 'connected' ? '准备开始' : '等待配置'}</span></div>
+          <section className="agent-execution-section"><div className="agent-section-heading"><span className="agent-section-label">对话与执行记录</span>{history.length > 0 && <span>{history.length} 条历史任务</span>}</div><AgentExecutionRecord messages={conversation} busyRunId={busyRunId} onStop={() => void stopTask()} /></section>
+          <AgentCommandPalette value={draft} onChange={setDraft} onSubmit={() => void submit()} busy={!!busyRunId} error={error} />
+        </div>
       </section>
 
       <aside className="agent-context-panel" aria-label="工作上下文"><AgentContext /><div className="agent-context-actions"><div className="agent-section-label">快捷操作</div><button type="button" onClick={() => setModule('agentMemory')}><Brain size={15} /><span>打开项目记忆</span><ArrowSquareOut size={13} /></button><button type="button" onClick={() => setModule('library')}><File size={15} /><span>附加文件</span><ArrowSquareOut size={13} /></button><button type="button" onClick={() => setModule('agentWorkflows')}><Plus size={15} /><span>切换工作流</span><ArrowSquareOut size={13} /></button></div><div className="agent-provider-summary"><div className="agent-section-label">Agent 信息</div><strong>{selected?.name ?? '未选择'}</strong><span>{selected?.type ?? '选择一个 Agent'}</span><small>{selected?.capabilities.join(' · ') ?? '暂无能力信息'}</small><small>上下文权限：当前 Workspace</small></div></aside>
