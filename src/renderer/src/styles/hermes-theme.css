@@ -7,15 +7,57 @@
   --hermes-text: rgba(255, 255, 255, 0.92);
   --hermes-muted: rgba(255, 255, 255, 0.55);
   --hermes-faint: rgba(255, 255, 255, 0.36);
-  --hermes-accent: #7C5CFF;
-  --hermes-accent-soft: rgba(124, 92, 255, 0.14);
+  /* Hermes uses the same restrained blue-grey language as the light shell.
+     Keep the accent semantic so a theme can change it without component CSS
+     introducing a second, unrelated colour system. */
+  --hermes-accent: #5f91a7;
+  --hermes-accent-soft: rgba(95, 145, 167, 0.14);
+  --hermes-accent-border: rgba(95, 145, 167, 0.5);
+  --hermes-accent-focus: rgba(95, 145, 167, 0.58);
+  --hermes-accent-glow: rgba(95, 145, 167, 0.25);
   --hermes-success: #65d99a;
   --hermes-danger: #ff7d8b;
   --hermes-warning: #f5c76b;
+  --hermes-shell: rgba(11, 13, 19, 0.92);
+  --hermes-column: rgba(15, 17, 23, 0.76);
+  --hermes-subtle: rgba(255, 255, 255, 0.018);
+  --hermes-panel: rgba(15, 17, 23, 0.94);
+  --hermes-composer-bg: rgba(255, 255, 255, 0.045);
+  --hermes-code-bg: rgba(0, 0, 0, 0.24);
+  --hermes-titlebar-height: 2.25rem;
   --hermes-radius: 24px;
   --hermes-radius-card: 16px;
   --hermes-shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
   --hermes-font: var(--font-ui, Inter, system-ui, sans-serif);
+}
+
+/* The application defaults to a light shell. Hermes should inherit that
+   surface language instead of forcing a dark, separate application inside it. */
+body[data-theme='light'],
+body[data-theme='hermes'] {
+  --hermes-bg: #f7f8fa;
+  --hermes-surface: rgba(255, 255, 255, 0.86);
+  --hermes-surface-raised: #ffffff;
+  --hermes-border: rgba(15, 23, 42, 0.12);
+  --hermes-border-strong: rgba(15, 23, 42, 0.2);
+  --hermes-text: #17191d;
+  --hermes-muted: rgba(23, 25, 29, 0.64);
+  --hermes-faint: rgba(23, 25, 29, 0.44);
+  --hermes-accent: #356b84;
+  --hermes-accent-soft: rgba(53, 107, 132, 0.12);
+  --hermes-accent-border: rgba(53, 107, 132, 0.46);
+  --hermes-accent-focus: rgba(53, 107, 132, 0.45);
+  --hermes-accent-glow: rgba(53, 107, 132, 0.2);
+  --hermes-success: #27815a;
+  --hermes-danger: #b64c54;
+  --hermes-warning: #91670a;
+  --hermes-shell: rgba(255, 255, 255, 0.96);
+  --hermes-column: rgba(249, 250, 252, 0.94);
+  --hermes-subtle: rgba(15, 23, 42, 0.025);
+  --hermes-panel: rgba(255, 255, 255, 0.98);
+  --hermes-composer-bg: rgba(255, 255, 255, 0.88);
+  --hermes-code-bg: rgba(15, 23, 42, 0.06);
+  --hermes-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
 }
 
 .hermes-page,
@@ -105,7 +147,7 @@
   overflow: hidden;
   border: 1px solid var(--hermes-border);
   border-radius: var(--hermes-radius);
-  background: rgba(11, 13, 19, 0.92);
+  background: var(--hermes-shell);
   box-shadow: var(--hermes-shadow);
 }
 
@@ -118,7 +160,7 @@
   overflow-y: auto;
   padding: 20px 14px 16px;
   border-right: 1px solid var(--hermes-border);
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--hermes-subtle);
 }
 .hermes-side-brand {
   display: flex;
@@ -137,7 +179,7 @@
   border-radius: 10px;
   color: var(--hermes-text);
   background: var(--hermes-accent);
-  box-shadow: 0 8px 22px rgba(124, 92, 255, 0.25);
+  box-shadow: 0 8px 22px var(--hermes-accent-glow);
 }
 .hermes-side-brand strong { display: block; color: var(--hermes-text); font-size: 15px; letter-spacing: -0.02em; }
 .hermes-side-brand span { display: block; margin-top: 2px; color: var(--hermes-muted); font-size: 10px; }
@@ -148,7 +190,7 @@
   justify-content: center;
   gap: 7px;
   min-height: 35px;
-  border: 1px solid rgba(124, 92, 255, 0.5);
+  border: 1px solid var(--hermes-accent-border);
   border-radius: 11px;
   color: var(--hermes-text);
   background: var(--hermes-accent);
@@ -173,7 +215,7 @@
   color: var(--hermes-faint);
   background: var(--hermes-surface);
 }
-.hermes-session-search:focus-within { border-color: rgba(124, 92, 255, 0.52); }
+.hermes-session-search:focus-within { border-color: var(--hermes-accent-focus); }
 .hermes-session-search input {
   width: 100%;
   min-width: 0;
@@ -272,7 +314,7 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  background: rgba(15, 17, 23, 0.76);
+  background: var(--hermes-column);
 }
 .hermes-conversation-head {
   display: flex;
@@ -337,7 +379,7 @@
   border-radius: var(--hermes-radius-card);
   background: var(--hermes-surface);
 }
-.hermes-response-card.is-busy { border-color: rgba(124, 92, 255, 0.42); }
+.hermes-response-card.is-busy { border-color: var(--hermes-accent-border); }
 .hermes-response-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .hermes-response-head > div { display: flex; align-items: baseline; gap: 9px; }
 .hermes-response-head strong { color: var(--hermes-text); font-size: 13px; }
@@ -390,7 +432,7 @@
 .hermes-response-empty button:hover { color: var(--hermes-text); border-color: var(--hermes-accent); }
 .hermes-response-actions { display: flex; gap: 2px; margin-top: 12px; color: var(--hermes-faint); font-size: 10px; }
 .hermes-markdown-code { padding: 2px 4px; border-radius: 5px; color: var(--hermes-text); background: var(--hermes-surface-raised); font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.92em; }
-.hermes-markdown-pre { overflow: auto; margin: 10px 0; padding: 11px 12px; border: 1px solid var(--hermes-border); border-radius: 10px; color: var(--hermes-text); background: rgba(0, 0, 0, 0.24); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.6; }
+.hermes-markdown-pre { overflow: auto; margin: 10px 0; padding: 11px 12px; border: 1px solid var(--hermes-border); border-radius: 10px; color: var(--hermes-text); background: var(--hermes-code-bg); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.6; }
 .hermes-markdown-heading { margin: 13px 0 5px; color: var(--hermes-text); font-weight: 650; }
 .hermes-markdown-heading-1 { font-size: 16px; }
 .hermes-markdown-heading-2 { font-size: 14px; }
@@ -434,7 +476,7 @@
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 .hermes-quick-actions:not(.is-compact) .hermes-quick-action { min-height: 58px; font-size: 12px; }
-.hermes-quick-action:hover { border-color: rgba(124, 92, 255, 0.45); color: var(--hermes-text); background: var(--hermes-surface-raised); transform: translateY(-1px); }
+.hermes-quick-action:hover { border-color: var(--hermes-accent-border); color: var(--hermes-text); background: var(--hermes-surface-raised); transform: translateY(-1px); }
 .hermes-quick-action:active { transform: translateY(0); }
 .hermes-quick-action-icon { display: inline-flex; align-items: center; color: var(--hermes-accent); }
 .hermes-quick-action > span:nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -448,12 +490,12 @@
   padding: 11px 11px 11px 14px;
   border: 1px solid var(--hermes-border);
   border-radius: var(--hermes-radius-card);
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--hermes-composer-bg);
   -webkit-backdrop-filter: blur(22px);
   backdrop-filter: blur(22px);
   box-shadow: 0 14px 42px rgba(0, 0, 0, 0.22);
 }
-.hermes-composer:focus-within { border-color: rgba(124, 92, 255, 0.58); box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.1), 0 14px 42px rgba(0, 0, 0, 0.22); }
+.hermes-composer:focus-within { border-color: var(--hermes-accent-focus); box-shadow: 0 0 0 3px var(--hermes-accent-soft), 0 14px 42px rgba(0, 0, 0, 0.22); }
 .hermes-composer textarea {
   min-height: 25px;
   max-height: 132px;
@@ -524,7 +566,7 @@
   overflow-y: auto;
   padding: 21px 17px;
   border-left: 1px solid var(--hermes-border);
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--hermes-subtle);
 }
 .hermes-context-panel.is-compact { padding: 0; border: 0; background: transparent; }
 .hermes-context-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -594,23 +636,27 @@ button.hermes-context-item { cursor: pointer; }
 }
 .hermes-floating-panel {
   position: fixed;
-  top: 16px;
+  top: calc(var(--hermes-titlebar-height) + 16px);
   right: 16px;
   bottom: 16px;
   display: flex;
   width: min(440px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  max-height: calc(100vh - var(--hermes-titlebar-height) - 32px);
   flex-direction: column;
   overflow: hidden;
   pointer-events: auto;
   border: 1px solid var(--hermes-border-strong);
   border-radius: var(--hermes-radius);
-  background: rgba(15, 17, 23, 0.94);
+  background: var(--hermes-panel);
   box-shadow: var(--hermes-shadow);
   -webkit-backdrop-filter: blur(30px) saturate(125%);
   backdrop-filter: blur(30px) saturate(125%);
   animation: hermes-floating-panel-in 200ms ease-out both;
 }
+
+/* Keep the native window controls above the assistant and give the panel a
+   clear starting edge below the titlebar. */
+.v04-shell .titlebar { z-index: 120; }
 .hermes-floating-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 18px 11px; }
 .hermes-floating-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .hermes-floating-title strong { display: block; color: var(--hermes-text); font-size: 14px; letter-spacing: -0.02em; }
