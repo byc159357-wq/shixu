@@ -4,6 +4,14 @@
 
 ## [未发布]
 
+## [0.12.0] - 2026-09-11
+
+### 修复
+
+- 修复浅色主题下 Agents 页面被全局透明度变量覆盖成深色的问题，统一恢复浅色 Workspace 背景、白色卡片、灰色边框和深色文字。
+- 归一化 Agent Provider 展示，过滤未纳入 Agent Center 的临时 Provider，并将兼容服务归入 Custom Agent。
+- Agent Dock 改为单行横向排列，减少卡片堆叠和标题截断；保留响应式横向滚动。
+
 ## [0.11.0] - 2026-09-11
 
 ### 重构
@@ -303,6 +311,7 @@
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
 [未发布]: https://github.com/byc159357-wq/shixu/compare/v0.4.2...HEAD
+[0.12.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.12.0
 [0.11.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.11.0
 [0.10.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.10.0
 [0.9.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.9.0

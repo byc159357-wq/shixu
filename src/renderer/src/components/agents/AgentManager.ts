@@ -6,6 +6,9 @@ export type AgentStatus = 'connected' | 'not-configured' | 'unavailable'
 
 export interface WorkspaceAgent {
   id: string
+  /** Provider id used by the IPC bridge. Custom Agent cards can present a
+   * normalized name while still routing to the configured provider. */
+  providerId?: string
   name: string
   type: string
   detail: string
@@ -74,10 +77,25 @@ function remember(id: string) {
   try { localStorage.setItem(SELECTED_AGENT_KEY, id) } catch { /* in-memory selection remains usable */ }
 }
 
-function fromProvider(provider: AgentProviderInfo): WorkspaceAgent {
-  const existing = catalog.find((agent) => agent.id === provider.id)
+function providerKind(provider: AgentProviderInfo): WorkspaceAgent['id'] | null {
+  const value = `${provider.id} ${provider.name}`.toLowerCase()
+  if (value.includes('hermes')) return 'hermes'
+  if (value.includes('openai')) return 'openai'
+  if (value.includes('claude')) return 'claude'
+  if (value.includes('codex')) return 'codex'
+  if (value.includes('gemini')) return 'gemini'
+  if (value.includes('local')) return 'local'
+  if (provider.kind === 'external') return 'custom'
+  return null
+}
+
+function fromProvider(provider: AgentProviderInfo): WorkspaceAgent | null {
+  const id = providerKind(provider)
+  if (!id) return null
+  const existing = catalog.find((agent) => agent.id === id)
   return {
-    id: provider.id,
+    id,
+    providerId: provider.id,
     name: existing?.name ?? provider.name,
     type: existing?.type ?? '已连接 Agent',
     detail: existing?.detail ?? provider.detail,
@@ -112,7 +130,12 @@ export const useAgentManager = create<AgentManagerState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const providers: AgentProviderInfo[] = await window.workdeck.agent.listProviders()
-      const discovered: WorkspaceAgent[] = providers.map(fromProvider)
+      const discovered = Array.from(
+        new Map(
+          providers.map(fromProvider).filter((agent): agent is WorkspaceAgent => !!agent)
+            .map((agent) => [agent.id, agent] as const)
+        ).values()
+      )
       const ids = new Set(discovered.map((agent) => agent.id))
       const agents: WorkspaceAgent[] = [...discovered, ...catalog.filter((agent: WorkspaceAgent) => !ids.has(agent.id))]
       const selectedId = agents.some((agent) => agent.id === get().selectedId) ? get().selectedId : 'hermes'
@@ -128,7 +151,7 @@ export const useAgentManager = create<AgentManagerState>((set, get) => ({
     remember(selectedId)
     set({ selectedId, error: null })
     if (!selected.runnable) return
-    await useHermesStore.getState().refreshModels(selectedId)
+    await useHermesStore.getState().refreshModels(selected.providerId ?? selectedId)
   },
   setDraft: (draft) => set((state) => ({ draft, recommendation: recommend(draft, state.agents) })),
   runTask: async (text) => {
@@ -137,8 +160,8 @@ export const useAgentManager = create<AgentManagerState>((set, get) => ({
     const hermes = useHermesStore.getState()
     return hermes.sendPrompt({
       text,
-      provider: selected.id,
-      model: hermes.model.provider === selected.id ? hermes.model.selectedId || undefined : undefined,
+      provider: selected.providerId ?? selected.id,
+      model: hermes.model.provider === (selected.providerId ?? selected.id) ? hermes.model.selectedId || undefined : undefined,
       sessionId: hermes.activeId
     })
   },
