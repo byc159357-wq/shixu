@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Brain, FolderSimple, Sparkle, X } from '@phosphor-icons/react'
+import { Brain, FolderSimple, X } from '@phosphor-icons/react'
 import { useAppStore } from '../../store'
-import {
-  useHermesStore
-} from './HermesStore'
-import { HermesComposer, HermesModelPicker } from './HermesComposer'
+import { useHermesStore } from './HermesStore'
+import { HermesComposer } from './HermesComposer'
 import { HermesQuickActions, FLOATING_HERMES_ACTIONS, type HermesQuickAction } from './HermesQuickActions'
 import { HermesResponseCard, HermesPromptRow } from './HermesResponseCard'
 import { HermesShell } from './HermesShell'
@@ -18,9 +16,6 @@ export function HermesFloatingPanel({ open, onClose }: { open: boolean; onClose:
   const conversation = useHermesStore((state) => state.conversation)
   const activeId = useHermesStore((state) => state.activeId)
   const busyRunId = useHermesStore((state) => state.busyRunId)
-  const model = useHermesStore((state) => state.model)
-  const setModel = useHermesStore((state) => state.setModel)
-  const refreshModels = useHermesStore((state) => state.refreshModels)
   const sendPrompt = useHermesStore((state) => state.sendPrompt)
   const stopPrompt = useHermesStore((state) => state.stopPrompt)
   const workspaceContext = useAppStore((state) => state.workspaceContext)
@@ -33,7 +28,6 @@ export function HermesFloatingPanel({ open, onClose }: { open: boolean; onClose:
       const target = event.target
       if (!(target instanceof Node)) return
       if (panelRef.current?.contains(target)) return
-      if (target instanceof Element && target.closest('.dd-menu')) return
       onClose()
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -76,22 +70,19 @@ export function HermesFloatingPanel({ open, onClose }: { open: boolean; onClose:
           className="hermes-floating-panel"
           role="dialog"
           aria-modal="false"
-          aria-label="Hermes Quick Assist"
+          aria-label="Hermes AI助手"
           onPointerDown={(event) => event.stopPropagation()}
         >
           <header className="hermes-floating-head">
             <div className="hermes-floating-title">
-              <span className="hermes-floating-mark"><Sparkle size={15} weight="fill" /></span>
-              <div><strong>Hermes</strong><span>Quick Assist</span></div>
+              <div><strong>Hermes</strong><span>AI助手</span></div>
             </div>
             <div className="hermes-floating-head-actions">
               <span className="hermes-floating-project"><FolderSimple size={13} />{projectName}</span>
               <button type="button" className="hermes-floating-close" onClick={onClose} aria-label="关闭 Hermes"><X size={16} /></button>
             </div>
-            <div className="hermes-floating-model hermes-floating-model-head">
-              <HermesModelPicker model={model} onChange={setModel} onRefresh={() => void refreshModels(model.provider)} compact />
-            </div>
           </header>
+
           <div className="hermes-floating-context-preview">
             <div className="hermes-context-preview-heading"><span>当前上下文</span><span>{context.currentPage}</span></div>
             <div className="hermes-context-preview-grid">
@@ -101,9 +92,10 @@ export function HermesFloatingPanel({ open, onClose }: { open: boolean; onClose:
               <span><small>任务</small><strong>{context.focusTask?.title ?? '暂无'}</strong></span>
             </div>
           </div>
+
           <div className="hermes-floating-scroll">
             <section className="hermes-floating-section">
-              <div className="hermes-floating-section-head"><span>快捷操作</span><span>选择后编辑</span></div>
+              <div className="hermes-floating-section-head"><span>最近操作</span><span>选择后编辑</span></div>
               <HermesQuickActions actions={FLOATING_HERMES_ACTIONS} onSelect={selectAction} compact />
             </section>
             <section className="hermes-floating-section hermes-floating-conversation">
@@ -117,6 +109,7 @@ export function HermesFloatingPanel({ open, onClose }: { open: boolean; onClose:
               )}
             </section>
           </div>
+
           <HermesComposer
             value={input}
             onChange={setInput}
@@ -124,7 +117,7 @@ export function HermesFloatingPanel({ open, onClose }: { open: boolean; onClose:
             onStop={() => void stopPrompt()}
             busy={!!busyRunId}
             inputRef={inputRef}
-            placeholder="Ask Hermes..."
+            placeholder="输入任务..."
           />
           <footer className="hermes-floating-foot">
             {error ? <span className="hermes-floating-error">{error}</span> : <span>共享当前项目上下文</span>}

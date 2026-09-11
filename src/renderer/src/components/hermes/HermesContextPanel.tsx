@@ -22,7 +22,6 @@ export function HermesContextPanel({
     <aside className={`hermes-context-panel ${compact ? 'is-compact' : ''}`} aria-label="当前 Hermes 上下文">
       <div className="hermes-context-head">
         <span className="hermes-context-eyebrow">当前上下文</span>
-        <span className="hermes-context-live"><span /> LIVE</span>
       </div>
       <div className="hermes-context-list">
         <button type="button" className="hermes-context-item" onClick={onOpenProject} disabled={!onOpenProject}>

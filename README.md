@@ -16,7 +16,7 @@
 
 拾序是一款面向 Windows 的本地优先个人工作台。它不会强迫你重新整理所有资料，而是在现有文件夹之上建立索引，把项目、文件、任务、笔记、日历和 AI 助手连接起来。
 
-当前版本为 **v0.8.2**。拾序正在从工具管理软件升级为以 Today、Project Space、Work Mode 和 Hermes Intelligence 为核心的个人工作操作系统。
+当前版本为 **v0.9.0**。拾序正在从工具管理软件升级为以 Today、Project Space、Work Mode 和 Hermes Intelligence 为核心的个人工作操作系统。
 
 ## 主要能力
 
@@ -25,7 +25,7 @@
 - **项目管理**：集中管理项目文件、任务、笔记、状态和排期，文件引用不会擅自移动原文件。
 - **文件资料库**：监控指定文件夹、保留真实目录层级、生成预览并支持搜索、筛选与项目关联。
 - **日历与倒计时**：按日期创建事件，支持月/周/议程视图以及 ICS 导入导出。
-- **Project Space 与 Hermes 工作流**：项目集中管理文件、任务、时间和 AI 记录；Hermes 作为三栏 AI 工作中心接入 Gateway / ACP，也支持 Ctrl + Space 唤醒右侧 Floating Assistant 和 OpenAI 兼容接口。
+- **Project Space 与 Hermes 工作流**：项目集中管理文件、任务、时间和 AI 记录；Hermes 原生融入 Workspace，接入 Gateway / ACP，支持 Ctrl + Space 唤醒右侧系统助手和 OpenAI 兼容接口。
 - **消息与产物**：集中查看 AI 会话、定时任务与生成产物。
 - **本地数据**：核心数据保存在本机 SQLite 数据库，支持自动备份和手动快照。
 

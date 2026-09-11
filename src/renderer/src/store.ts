@@ -104,7 +104,7 @@ interface AppState {
   projectSwitcher: ProjectSwitcherState
   density: Density
   wallpaper: Wallpaper
-  theme: 'dark' | 'light' | 'hermes'
+  theme: 'dark' | 'light'
   uiRadius: 'sharp' | 'default' | 'round'
   uiAlpha: 'crisp' | 'standard' | 'soft'
   uiAccent: string
@@ -203,7 +203,7 @@ interface AppState {
   revealFile: (id: string) => Promise<void>
   setDensity: (d: Density) => Promise<void>
   setWallpaper: (w: Wallpaper) => Promise<void>
-  setTheme: (t: 'dark' | 'light' | 'hermes') => Promise<void>
+  setTheme: (t: 'dark' | 'light') => Promise<void>
   setUiRadius: (v: 'sharp' | 'default' | 'round') => Promise<void>
   setUiAlpha: (v: 'crisp' | 'standard' | 'soft') => Promise<void>
   setUiAccent: (v: string) => Promise<void>
@@ -317,7 +317,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         currentProjectId: workspaceContext.currentProject?.id ?? null,
         density: settings['ui.density'],
         wallpaper: settings['app.wallpaper'],
-        theme: settings['app.theme'],
+        // Hermes used to be persisted as a separate theme. Keep old installs
+        // on the Workspace light/dark system instead of reviving that skin.
+        theme: settings['app.theme'] === 'light' ? 'light' : 'dark',
         uiRadius: settings['ui.radius'] ?? 'default',
         uiAlpha: settings['ui.alpha'] ?? 'standard',
         uiAccent: settings['ui.accent'] ?? 'silver'

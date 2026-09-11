@@ -24,8 +24,7 @@ import {
   FileText,
   Sparkle,
   PaperPlaneTilt,
-  ArrowUpRight,
-  ArrowsClockwise
+  ArrowUpRight
 } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { useAppStore } from '../store'
@@ -38,7 +37,7 @@ import {
   FoldersBoxWidget,
   VideosWidget
 } from './BoxWidgets'
-import { Select, type SelectOption } from './ui'
+import { Select } from './ui'
 
 const SHORT_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -1239,20 +1238,12 @@ export function AIWidget() {
   const conversation = useHermesStore((s) => s.conversation)
   const sharedBusyRunId = useHermesStore((s) => s.busyRunId)
   const sendPrompt = useHermesStore((s) => s.sendPrompt)
-  const hermesModels = hermesModel.models
-  const selectedModel = hermesModel.selectedId
   const modelStatus = hermesModel.status
   const modelError = hermesModel.error
   const modelProvider = hermesModel.provider
   const loadHermesModels = useHermesStore((s) => s.refreshModels)
-  const setHermesModel = useHermesStore((s) => s.setModel)
   const provider = hermesModel.provider || 'hermes'
   const isBusy = busy || !!sharedBusyRunId
-  const modelOptions: SelectOption[] = hermesModels.map((m) => {
-    const label = m.name || m.id
-    const separator = label.indexOf(' · ')
-    return { value: m.id, label, shortLabel: separator >= 0 ? label.slice(separator + 3) : label }
-  })
 
   useEffect(() => {
     if (modelStatus === 'idle' || modelProvider !== provider) void loadHermesModels(provider)
@@ -1273,11 +1264,8 @@ export function AIWidget() {
     setBusy(true)
     try {
       await loadHermesModels(provider)
-      const latest = useHermesStore.getState().model
       const result = await sendPrompt({
         text,
-        provider: latest.provider || provider,
-        model: latest.selectedId || selectedModel || undefined,
         sessionId: activeId
       })
       setReply(result.finalText.trim() || 'Hermes 已完成，但没有返回文本。')
@@ -1298,28 +1286,6 @@ export function AIWidget() {
 
   return (
     <div className="home-ai-widget">
-      <div className="home-ai-model-row">
-        <select
-          className="input home-ai-model-select"
-          aria-label="选择 Hermes 模型"
-          value={modelStatus === 'success' ? selectedModel : ''}
-          disabled={isBusy || modelStatus !== 'success'}
-          onChange={(event) => {
-            const value = event.target.value
-            setHermesModel(value)
-          }}
-        >
-          {modelStatus === 'loading' && <option value="">正在加载模型...</option>}
-          {modelStatus === 'empty' && <option value="">请先配置 AI 服务</option>}
-          {modelStatus === 'error' && <option value="">模型加载失败，点击重试</option>}
-          {modelOptions.map((option) => (
-            <option key={option.value} value={option.value}>{option.shortLabel ?? option.label}</option>
-          ))}
-        </select>
-        <button className="ai-icon-btn" title="刷新模型" aria-label="刷新模型" onClick={() => void loadHermesModels(provider)} disabled={modelStatus === 'loading'}>
-          <ArrowsClockwise size={14} />
-        </button>
-      </div>
       {modelStatus === 'loading' && <div className="home-ai-model-status">正在加载模型...</div>}
       {modelStatus === 'error' && <button className="home-ai-model-status is-error" onClick={() => void loadHermesModels(provider)}>模型加载失败，点击重试{modelError ? ` · ${modelError}` : ''}</button>}
       {modelStatus === 'empty' && <div className="home-ai-model-status">请先配置 AI 服务</div>}

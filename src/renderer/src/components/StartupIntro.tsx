@@ -7,7 +7,7 @@ gsap.registerPlugin(useGSAP)
 
 interface StartupIntroProps {
   appRoot: RefObject<HTMLElement | null>
-  theme: 'dark' | 'light' | 'hermes'
+  theme: 'dark' | 'light'
   reducedMotion: boolean
   onComplete: () => void
 }

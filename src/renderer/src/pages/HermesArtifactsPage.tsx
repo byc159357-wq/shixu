@@ -30,7 +30,7 @@ const SAMPLE: Artifact[] = [
     id: 'a_demo_1',
     title: '项目总结.md',
     kind: 'text',
-    content: '## 项目总结\n\n1. 完成首页自由布局与响应式优化。\n2. Hermes 工作中心接入 Hermes，支持工具调用。\n3. 打包 v0.1.0 安装包已就绪。',
+    content: '## 项目总结\n\n1. 完成首页自由布局与响应式优化。\n2. Hermes 接入本地 Agent，支持工具调用。\n3. 打包 v0.1.0 安装包已就绪。',
     createdAt: Date.now() - 1000 * 60 * 60 * 2
   },
   {
@@ -113,7 +113,7 @@ export function HermesArtifactsPage() {
   return (
     <main className="workspace">
       <div className="page-header">
-        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes 工作中心">
+        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes">
           <ArrowLeft size={18} />
         </button>
         <div>
@@ -122,7 +122,7 @@ export function HermesArtifactsPage() {
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setModule('hermes')}>
           <Plus size={13} style={{ marginRight: 4 }} />
-          去 Hermes 工作中心生成
+              去 Hermes 生成
         </button>
       </div>
 
@@ -144,7 +144,7 @@ export function HermesArtifactsPage() {
               <div className="empty-state" style={{ padding: 'var(--space-6) var(--space-3)' }}>
                 <Package size={32} color="var(--text-3)" />
                 <div className="empty-state-title">没有产物</div>
-                <div className="empty-state-sub">在 Hermes 工作中心生成的内容会同步出现在这里。</div>
+                <div className="empty-state-sub">在 Hermes 生成的内容会同步出现在这里。</div>
               </div>
             ) : (
               filtered.map((a) => (

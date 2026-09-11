@@ -123,7 +123,7 @@ export function HermesTasksPage() {
   return (
     <main className="workspace">
       <div className="page-header">
-        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes 工作中心">
+        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes">
           <ArrowLeft size={18} />
         </button>
         <div>
@@ -205,7 +205,7 @@ export function HermesTasksPage() {
                   </div>
                 </div>
                 <div className="ai-task-row-acts">
-                  <button className="ai-icon-btn" onClick={() => runNow(t)} title="立即执行并跳转 Hermes 工作中心">
+                  <button className="ai-icon-btn" onClick={() => runNow(t)} title="立即执行并跳转 Hermes">
                     <Play size={16} />
                   </button>
                   <button className="ai-icon-btn" onClick={() => toggleTask(t.id)} title={t.enabled ? '暂停' : '启用'}>

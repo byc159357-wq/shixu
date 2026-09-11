@@ -36,7 +36,7 @@ export function HermesMessagesPage() {
   return (
     <main className="workspace hermes-aux-page">
       <div className="page-header">
-        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes 工作中心"><ArrowLeft size={18} /></button>
+        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes"><ArrowLeft size={18} /></button>
         <div>
           <h1>Hermes 消息</h1>
           <div className="sub">所有 Hermes 工作任务都会在这里保留，方便继续处理。</div>
@@ -49,7 +49,7 @@ export function HermesMessagesPage() {
           <input className="palette-input" placeholder="搜索任务标题或内容…" value={query} onChange={(event) => setQuery(event.target.value)} />
         </div>
         {filtered.length === 0 ? (
-          <div className="empty-state hermes-aux-empty"><ChatCircleDots size={40} color="var(--text-3)" /><div className="empty-state-title">暂无任务</div><div className="empty-state-sub">在 Hermes 工作中心开始一个任务后，它会自动出现在这里。</div><button className="btn btn-primary btn-sm" onClick={addSession}><Plus size={13} style={{ marginRight: 4 }} />新建任务</button></div>
+          <div className="empty-state hermes-aux-empty"><ChatCircleDots size={40} color="var(--text-3)" /><div className="empty-state-title">暂无任务</div><div className="empty-state-sub">在 Hermes 开始一个任务后，它会自动出现在这里。</div><button className="btn btn-primary btn-sm" onClick={addSession}><Plus size={13} style={{ marginRight: 4 }} />新建任务</button></div>
         ) : (
           <div className="hermes-history-list">
             {filtered.map((session) => (

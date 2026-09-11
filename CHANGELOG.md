@@ -4,6 +4,16 @@
 
 ## [未发布]
 
+## [0.9.0] - 2026-09-11
+
+### 重构
+
+- Hermes 完整页面移除内部侧栏，直接融入 Shixu Workspace 主区域与右侧上下文面板。
+- Full Hermes 与 Floating Hermes 共享会话、上下文、任务输入和 HermesStore，保留现有 ACP/Gateway 流式执行能力。
+- Ctrl + Space 改为浅色右侧系统助手，避开标题栏和窗口关闭按钮，点击外部、Escape 或关闭按钮即可退出。
+- 移除 Hermes 独立深色、紫色和蓝紫渐变视觉；模型选择与刷新集中到「设置 → AI 智能 → Hermes Agent」。
+- 自由布局中的旧 AI Widget 改为读取统一 HermesStore，保留已有 Workspace Layout、会话和本地数据兼容性。
+
 ## [0.8.2] - 2026-09-11
 
 ### 新增

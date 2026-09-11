@@ -4,6 +4,7 @@ import { LLM_PROVIDERS, findProvider, matchProviderByBaseUrl } from '../../../sh
 import { useAppStore } from '../store'
 import { Button, EmptyState, Select } from '../components/ui'
 import { AgentProfilesCard } from './AgentProfilesCard'
+import { HermesAgentSettingsCard } from './HermesAgentSettingsCard'
 import { Plus, Trash, FileArrowUp, ArrowClockwise, DownloadSimple, Play, Sparkle, FloppyDisk, SignIn, XCircle, ShieldCheck, Envelope, CaretDown, Palette, FolderOpen, TestTube } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 
@@ -129,7 +130,6 @@ export function SettingsPage() {
                   {(
                     [
                       { id: 'dark', label: '深色', desc: '默认玻璃深色，低光环境舒适' },
-                      { id: 'hermes', label: 'Hermes · 张扬蓝', desc: '纯白画布 · 张狂电光蓝 · Hermes Agent' },
                       { id: 'light', label: '浅色', desc: '明亮浅色，适合日间' }
                     ] as const
                   ).map((t) => (
@@ -252,6 +252,7 @@ export function SettingsPage() {
           {/* —— AI 智能 —— */}
       {section === 'ai' && (
         <>
+          <HermesAgentSettingsCard />
           <AiSettingsCard />
           <AgentProfilesCard />
         </>
