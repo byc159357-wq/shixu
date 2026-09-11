@@ -1,2 +1,2 @@
-/** @deprecated Import HermesPage from components/hermes instead. */
-export { HermesPage as AIPage } from '../components/hermes/HermesPage'
+/** @deprecated Use AgentCenter. Kept as a module compatibility export. */
+export { AgentCenter as AIPage } from '../components/agents/AgentCenter'

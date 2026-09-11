@@ -26,7 +26,7 @@ export function HermesMessagesPage() {
 
   const addSession = () => {
     setActiveSession(null)
-    setModule('hermes')
+    setModule('agents')
   }
 
   const removeSession = (id: string) => {
@@ -36,7 +36,7 @@ export function HermesMessagesPage() {
   return (
     <main className="workspace hermes-aux-page">
       <div className="page-header">
-        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes"><ArrowLeft size={18} /></button>
+        <button className="icon-btn" onClick={() => setModule('agents')} title="返回 Agents"><ArrowLeft size={18} /></button>
         <div>
           <h1>Hermes 消息</h1>
           <div className="sub">所有 Hermes 工作任务都会在这里保留，方便继续处理。</div>
@@ -54,7 +54,7 @@ export function HermesMessagesPage() {
           <div className="hermes-history-list">
             {filtered.map((session) => (
               <div key={session.id} className="hermes-history-row">
-                <button type="button" className="hermes-history-main" onClick={() => { setActiveSession(session.id); setModule('hermes') }}>
+                <button type="button" className="hermes-history-main" onClick={() => { setActiveSession(session.id); setModule('agents') }}>
                   <ChatCircleDots size={18} />
                   <span><strong>{session.title}</strong><small>{session.preview || '继续这个任务'}</small></span>
                   <time><Clock size={11} />{relTime(session.ts)}</time>

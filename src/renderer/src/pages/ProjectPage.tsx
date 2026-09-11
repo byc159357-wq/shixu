@@ -105,7 +105,7 @@ function ProjectDetail({ project }: { project: Project }) {
         <div><span>开始于</span><strong>{project.created_at.slice(0, 10)}</strong></div>
         <div><span>截止</span><strong>{project.deadline || '未设置'}</strong></div>
         <button onClick={() => setModule('scenarios')}><Play size={14} /> 关联场景 <ArrowUpRight size={14} /></button>
-        <button onClick={() => window.dispatchEvent(new Event('workdeck:open-hermes'))}><Sparkle size={14} /> Hermes 助手 <ArrowUpRight size={14} /></button>
+        <button onClick={() => window.dispatchEvent(new Event('workdeck:open-agent'))}><Sparkle size={14} /> 调用 Agent <ArrowUpRight size={14} /></button>
       </div>
 
       <div className="tabs" role="tablist">

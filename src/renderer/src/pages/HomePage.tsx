@@ -125,7 +125,7 @@ function TodayCenter() {
         </section>
 
         <section className="today-panel today-hermes-panel">
-          <div className="today-panel-head"><span><Sparkle size={15} /> Hermes Intelligence</span><button className="today-link" onClick={() => void refreshIntelligence()}>刷新分析</button></div>
+          <div className="today-panel-head"><span><Sparkle size={15} /> 工作建议</span><button className="today-link" onClick={() => void refreshIntelligence()}>刷新分析</button></div>
           {intelligence ? <>
             <p className="today-hermes-copy"><strong>{intelligence.headline}</strong><br />{intelligence.body}</p>
             {intelligence.projectStatuses.length > 0 && <div className="today-intelligence-statuses">{intelligence.projectStatuses.slice(0, 3).map((status) => <div className="today-intelligence-status" key={status.projectId}><span>{status.projectName}</span><small>{status.overdueTasks > 0 ? `${status.overdueTasks} 个逾期` : `${status.openTasks} 个待办`} · {status.risk === 'stalled' ? '需要启动' : status.risk === 'overdue' ? '需优先处理' : '进行中'}</small></div>)}</div>}

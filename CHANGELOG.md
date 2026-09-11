@@ -4,6 +4,16 @@
 
 ## [未发布]
 
+## [0.10.0] - 2026-09-11
+
+### 重构
+
+- 拾序的 Intelligence 区升级为 Agents、Memory、Workflows；Hermes 从独立产品入口调整为系统 Agent Provider。
+- 新增 AgentManager，统一 Provider 注册、切换、模型状态、任务调用、执行记录与 WorkspaceContext；继续复用 ACP/Gateway 和已有 SQLite 会话存储。
+- Ctrl + Space 改为右侧 Agent Assistant，可选择当前 Agent、查看工作上下文、输入任务和继续同一执行记录。
+- 新增 Agent Center：显示 Agent 卡片、当前 Agent、任务输入、上下文和执行记录；Claude、Codex、Gemini 与 Custom Agent 在未配置时明确提示。
+- 删除 Hermes 专属主题引用，Agents 页面和悬浮面板完全继承 Workspace 的背景、卡片、边框、圆角、按钮和浅深色主题。
+
 ## [0.9.0] - 2026-09-11
 
 ### 重构

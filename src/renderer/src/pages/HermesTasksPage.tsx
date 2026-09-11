@@ -117,13 +117,13 @@ export function HermesTasksPage() {
     setTasks((prev) =>
       prev.map((x) => (x.id === t.id ? { ...x, lastRun: Date.now(), nextRun: computeNextRun(x.freq, Date.now()) } : x))
     )
-    setModule('hermes')
+    setModule('agents')
   }
 
   return (
     <main className="workspace">
       <div className="page-header">
-        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes">
+        <button className="icon-btn" onClick={() => setModule('agents')} title="返回 Agents">
           <ArrowLeft size={18} />
         </button>
         <div>

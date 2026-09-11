@@ -8,7 +8,7 @@ import {
   Square,
   MagnifyingGlass,
   House,
-  CalendarDots,
+  Brain,
   Sparkle,
   Images,
   SquaresFour,
@@ -28,8 +28,11 @@ import { ProjectPage } from './pages/ProjectPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { CalendarPage } from './pages/CalendarPage'
-import { HermesPage } from './components/hermes/HermesPage'
-import { HermesFloatingPanel } from './components/hermes/HermesFloatingPanel'
+import { AgentCenter } from './components/agents/AgentCenter'
+import { AgentFloatingPanel } from './components/agents/AgentFloatingPanel'
+import { useAgentManager } from './components/agents/AgentManager'
+import { AgentMemoryPage } from './pages/AgentMemoryPage'
+import { AgentWorkflowsPage } from './pages/AgentWorkflowsPage'
 import { HermesMessagesPage } from './pages/HermesMessagesPage'
 import { HermesArtifactsPage } from './pages/HermesArtifactsPage'
 import { HermesTasksPage } from './pages/HermesTasksPage'
@@ -156,15 +159,11 @@ const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
       { id: 'library', icon: <Images size={18} />, title: '文件库', label: '文件库' }
     ]
   },
-  {
-    id: 'planning',
-    label: 'Planning',
-    items: [
-      { id: 'calendar', icon: <CalendarDots size={18} />, title: '日历与倒计时', label: '计划' },
-      { id: 'scenarios', icon: <Play size={18} />, title: '工作模式', label: '模式' }
-    ]
-  },
-  { id: 'intelligence', label: 'Intelligence', items: [{ id: 'hermes', icon: <Sparkle size={18} />, title: '打开 Hermes 助手', label: 'Hermes' }] },
+  { id: 'intelligence', label: 'Intelligence', items: [
+    { id: 'agents', icon: <Sparkle size={18} />, title: 'Agent Center', label: 'Agents' },
+    { id: 'agentMemory', icon: <Brain size={18} />, title: '项目长期记忆', label: 'Memory' },
+    { id: 'agentWorkflows', icon: <Play size={18} />, title: '工作流程', label: 'Workflows' }
+  ] },
   {
     id: 'system',
     label: 'System',
@@ -175,7 +174,7 @@ const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
   }
 ]
 
-function Dock({ onOpenHermes }: { onOpenHermes: () => void }) {
+function Dock({ onOpenAgent }: { onOpenAgent: () => void }) {
   const module = useAppStore((s) => s.module)
   const setModule = useAppStore((s) => s.setModule)
   const openPalette = useAppStore((s) => s.openPalette)
@@ -183,11 +182,11 @@ function Dock({ onOpenHermes }: { onOpenHermes: () => void }) {
   const renderItem = (n: NavItem) => (
     <button
       key={n.id}
-      className={`dock-item sidebar-nav-item ${module === n.id ? 'active' : ''} ${n.id === 'hermes' ? 'hermes-nav-item' : ''}`}
+      className={`dock-item sidebar-nav-item ${module === n.id ? 'active' : ''} ${n.id === 'agents' ? 'agents-nav-item' : ''}`}
       title={n.title}
       onClick={() => {
         if (n.id === 'search') openPalette()
-        else if (n.id === 'hermes') setModule('hermes')
+        else if (n.id === 'agents') setModule('agents')
         else setModule(n.id as Module)
       }}
     >
@@ -213,10 +212,10 @@ function Dock({ onOpenHermes }: { onOpenHermes: () => void }) {
           </div>
         ))}
       </div>
-      <button className="sidebar-hermes-launch" onClick={onOpenHermes}>
+      <button className="sidebar-agent-launch" onClick={onOpenAgent}>
         <Sparkle size={16} weight="fill" />
-        <span>Ask Hermes</span>
-        <span className="sidebar-hermes-kbd">Ctrl Space</span>
+        <span>调用 Agent</span>
+        <span className="sidebar-agent-kbd">Ctrl Space</span>
       </button>
     </nav>
   )
@@ -258,8 +257,12 @@ function Workspace() {
         return <LibraryPage />
       case 'calendar':
         return <CalendarPage />
-      case 'hermes':
-        return <HermesPage />
+      case 'agents':
+        return <AgentCenter />
+      case 'agentMemory':
+        return <AgentMemoryPage />
+      case 'agentWorkflows':
+        return <AgentWorkflowsPage />
       case 'hermesMessages':
         return <HermesMessagesPage />
       case 'hermesArtifacts':
@@ -588,13 +591,26 @@ export default function App() {
   const currentFiles = useAppStore((s) => s.files)
   const appShellRef = useRef<HTMLDivElement>(null)
   const [showStartup, setShowStartup] = useState(true)
-  const [hermesOpen, setHermesOpen] = useState(false)
+  const [agentOpen, setAgentOpen] = useState(false)
+  const loadAgents = useAgentManager((s) => s.loadAgents)
+  const setAgentDraft = useAgentManager((s) => s.setDraft)
 
   useEffect(() => {
-    const openHermes = () => setHermesOpen(true)
-    window.addEventListener('workdeck:open-hermes', openHermes)
-    return () => window.removeEventListener('workdeck:open-hermes', openHermes)
-  }, [])
+    const openAgent = () => setAgentOpen(true)
+    const openWithTask = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      if (detail) setAgentDraft(detail)
+      setAgentOpen(true)
+    }
+    window.addEventListener('workdeck:open-agent', openAgent)
+    window.addEventListener('workdeck:open-hermes', openAgent)
+    window.addEventListener('workdeck:agent-task', openWithTask)
+    return () => {
+      window.removeEventListener('workdeck:open-agent', openAgent)
+      window.removeEventListener('workdeck:open-hermes', openAgent)
+      window.removeEventListener('workdeck:agent-task', openWithTask)
+    }
+  }, [setAgentDraft])
 
   // Motion preferences: OS-level reduced motion + low-power device detection.
   // Both write to body[data-*] so CSS can downgrade durations in one place.
@@ -632,6 +648,8 @@ export default function App() {
     void loadProjects()
   }, [loadProjects])
 
+  useEffect(() => { void loadAgents() }, [loadAgents])
+
   // Keep the live Zustand context in sync with actions recorded by the main
   // process (file opens, scene launches and completed tasks).
   useEffect(() => {
@@ -657,13 +675,13 @@ export default function App() {
     void loadIntelligence()
   }, [loadIntelligence])
 
-  // Warm the shared Hermes model roster once at shell startup. Full Hermes,
-  // the compact panel and the legacy workspace widget all consume this state.
+  // Warm the shared Agent model roster once at shell startup. The Agent Center,
+  // assistant panel and the legacy workspace widget all consume this state.
   useEffect(() => {
     void refreshHermesModels()
   }, [refreshHermesModels])
 
-  // Hermes receives a live snapshot of the user's current work without
+  // The Agent layer receives a live snapshot of the user's current work without
   // replacing the durable WorkspaceContext source in the main process.
   useEffect(() => {
     const pageLabels: Partial<Record<Module, string>> = {
@@ -724,11 +742,11 @@ export default function App() {
       }
       if (e.ctrlKey && e.code === 'Space') {
         e.preventDefault()
-        setHermesOpen((open) => !open)
+        setAgentOpen((open) => !open)
       }
       if (e.key === 'Escape') {
         closePalette()
-        setHermesOpen(false)
+        setAgentOpen(false)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -764,7 +782,7 @@ export default function App() {
       <div ref={appShellRef} className={shellClass}>
         <TitleBar />
         <UpdateBanner />
-        <Dock onOpenHermes={() => setHermesOpen(true)} />
+        <Dock onOpenAgent={() => setAgentOpen(true)} />
         <ScenarioCompletionBanner />
         <Workspace />
         <DetailPopover />
@@ -772,7 +790,7 @@ export default function App() {
         <CommandPalette />
         <ContextMenuOverlay />
         <ToastStack />
-        <HermesFloatingPanel open={hermesOpen} onClose={() => setHermesOpen(false)} />
+        <AgentFloatingPanel open={agentOpen} onClose={() => setAgentOpen(false)} />
       </div>
       {showStartup && (
         <StartupIntro

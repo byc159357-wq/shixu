@@ -1,5 +1,11 @@
 /* ATELIER design tokens — Strict Black & White */
 :root {
+  /* Workspace semantic aliases. Product areas use these rather than creating
+     separate visual systems. */
+  --background: var(--bg);
+  --surface: var(--surface-1);
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
   /* ---------- Colors: pure black / white / greys only ---------- */
   --bg: #000000;
   --surface-0: rgba(28, 28, 30, 0.6);

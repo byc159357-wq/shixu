@@ -113,14 +113,14 @@ export function HermesArtifactsPage() {
   return (
     <main className="workspace">
       <div className="page-header">
-        <button className="icon-btn" onClick={() => setModule('hermes')} title="返回 Hermes">
+        <button className="icon-btn" onClick={() => setModule('agents')} title="返回 Agents">
           <ArrowLeft size={18} />
         </button>
         <div>
           <h1>Hermes 产物</h1>
           <div className="sub">集中查看、复制与管理 Hermes 生成的文本、代码与文件</div>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setModule('hermes')}>
+        <button className="btn btn-primary btn-sm" onClick={() => setModule('agents')}>
           <Plus size={13} style={{ marginRight: 4 }} />
               去 Hermes 生成
         </button>

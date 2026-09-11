@@ -1231,7 +1231,7 @@ export function AlbumWidget() {
 
 export function AIWidget() {
   const [input, setInput] = useState('')
-  const [reply, setReply] = useState('在这里直接向 Hermes 提问。')
+  const [reply, setReply] = useState('在这里向当前 Agent 提问。')
   const [busy, setBusy] = useState(false)
   const hermesModel = useHermesStore((s) => s.model)
   const activeId = useHermesStore((s) => s.activeId)
@@ -1268,7 +1268,7 @@ export function AIWidget() {
         text,
         sessionId: activeId
       })
-      setReply(result.finalText.trim() || 'Hermes 已完成，但没有返回文本。')
+      setReply(result.finalText.trim() || 'Agent 已完成，但没有返回文本。')
     } catch (err) {
       const clean = String(err).replace(
         /^Error:\s*Error invoking remote method '[^']+':\s*(?:Error:\s*)?/,
@@ -1276,7 +1276,7 @@ export function AIWidget() {
       )
       setReply(
         /free period has ended|select a different model|HTTP 404/i.test(clean)
-          ? '当前模型的免费使用期已结束。请在 Hermes 页面切换一个可用模型后重试。'
+          ? '当前模型的免费使用期已结束。请在 Agents 中切换一个可用模型后重试。'
           : clean || '发送失败，请稍后重试。'
       )
     } finally {
@@ -1296,19 +1296,19 @@ export function AIWidget() {
         <input
           className="input"
           value={input}
-          placeholder="问 Hermes…"
+          placeholder="问当前 Agent…"
           disabled={isBusy}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) void send()
           }}
-          aria-label="向 Hermes 提问"
+          aria-label="向当前 Agent 提问"
         />
         <button
           className="home-ai-send"
           disabled={isBusy || !input.trim()}
           onClick={() => void send()}
-          aria-label={busy ? 'Hermes 正在回复' : '发送'}
+          aria-label={busy ? 'Agent 正在回复' : '发送'}
         >
           <PaperPlaneTilt size={15} weight="fill" />
         </button>
@@ -1324,7 +1324,7 @@ interface WidgetProps {
 
 export const WIDGETS: Record<WidgetKind, { title: string; defaultSize: { w: number; h: number } }> = {
   ai: { title: 'AI 助手', defaultSize: { w: 3, h: 3 } },
-  hermes: { title: 'Hermes', defaultSize: { w: 4, h: 5 } },
+  hermes: { title: 'Agent', defaultSize: { w: 4, h: 5 } },
   today: { title: '今日', defaultSize: { w: 4, h: 3 } },
   clock: { title: '时钟', defaultSize: { w: 2, h: 2 } },
   tasks: { title: '任务速览', defaultSize: { w: 4, h: 2 } },

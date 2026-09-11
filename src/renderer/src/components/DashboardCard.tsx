@@ -237,9 +237,9 @@ export function DashboardCard(props: Props) {
 function defaultTitle(kind: LayoutItem['kind']): string {
   switch (kind) {
     case 'ai':
-      return 'Hermes 助手'
+      return 'Agent 助手'
     case 'hermes':
-      return 'Hermes'
+      return 'Agent'
     case 'today':
       return '今日'
     case 'clock':

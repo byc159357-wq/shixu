@@ -2521,10 +2521,10 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
 .v04-shell .dock-item.sidebar-nav-item.active { transform: none; background: var(--selected-bg); border-color: var(--selected-border); box-shadow: none; color: var(--text-1); }
 .v04-shell .dock-item.sidebar-nav-item.active svg { color: var(--accent); }
 .v04-shell .dock-item.sidebar-nav-item.active::after { display: none; }
-.v04-shell .dock-item.sidebar-nav-item.hermes-nav-item { color: var(--accent); }
-.v04-shell .dock-item.sidebar-nav-item.hermes-nav-item svg { color: var(--accent); }
+.v04-shell .dock-item.sidebar-nav-item.agents-nav-item { color: var(--accent); }
+.v04-shell .dock-item.sidebar-nav-item.agents-nav-item svg { color: var(--accent); }
 
-.sidebar-hermes-launch {
+.sidebar-agent-launch {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -2538,9 +2538,9 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
-.sidebar-hermes-launch:hover { background: var(--hover-bg); border-color: var(--accent); }
-.sidebar-hermes-launch svg { color: var(--accent); }
-.sidebar-hermes-kbd { margin-left: auto; color: var(--text-3); font-size: var(--fs-micro); font-weight: 500; }
+.sidebar-agent-launch:hover { background: var(--hover-bg); border-color: var(--accent); }
+.sidebar-agent-launch svg { color: var(--accent); }
+.sidebar-agent-kbd { margin-left: auto; color: var(--text-3); font-size: var(--fs-micro); font-weight: 500; }
 
 .v04-shell .workspace {
   min-width: 0;
@@ -2564,7 +2564,7 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
 .v04-shell .btn { min-height: 2.35rem; border-radius: 0.65rem; font-weight: 650; }
 .v04-shell .btn:focus-visible,
 .v04-shell .dock-item:focus-visible,
-.sidebar-hermes-launch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sidebar-agent-launch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 @media (max-width: 800px) {
   .v04-shell.app-shell { grid-template-columns: 0 minmax(0, 1fr); }

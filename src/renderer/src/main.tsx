@@ -4,7 +4,7 @@ import App from './App'
 import './styles/tokens.css'
 import './styles/glass.css'
 import './styles/app.css'
-import './styles/hermes-theme.css'
+import './styles/agents.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
