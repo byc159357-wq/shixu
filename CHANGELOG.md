@@ -4,6 +4,17 @@
 
 ## [未发布]
 
+## [0.11.0] - 2026-09-11
+
+### 重构
+
+- Agents 页面改为拾序内的 Agent 工作中心：Header、横向 Agent Dock、70% Task Workspace 与 30% Context Panel。
+- 移除旧的 Hermes 式三栏后台布局和独立品牌占位，保留拾序主导航，不增加页面内部导航。
+- 新增“接入 Agent”和“新任务”入口；Agent Dock 展示 Hermes、OpenAI、Claude、Codex、Gemini、Local Agent 与 Custom Agent 的状态和能力。
+- Task Composer 改为任务输入区，保留分析、创建、修改、执行快捷动作、Ctrl/Cmd + Enter 和共享执行记录。
+- Context Panel 改为轻量当前项目、页面、文件、工作模式、关注任务、项目记忆、文件和工作流入口。
+- 统一使用 Workspace 的浅色背景、白色卡片、灰色边框和现有 Accent，移除 Agents 页面独立深色、紫色与 AI Neon 视觉。
+
 ## [0.10.0] - 2026-09-11
 
 ### 重构
@@ -292,6 +303,9 @@
 - 浅色、深色与蓝色主题及统一品牌 Logo。
 
 [未发布]: https://github.com/byc159357-wq/shixu/compare/v0.4.2...HEAD
+[0.11.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.11.0
+[0.10.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.10.0
+[0.9.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.9.0
 [0.4.2]: https://github.com/byc159357-wq/shixu/releases/tag/v0.4.2
 [0.4.1]: https://github.com/byc159357-wq/shixu/releases/tag/v0.4.1
 [0.4.0]: https://github.com/byc159357-wq/shixu/releases/tag/v0.4.0

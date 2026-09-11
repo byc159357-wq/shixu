@@ -161,23 +161,23 @@
 /* ============ Light theme ============ */
 body[data-theme='light'] {
   /* ---------- Pure white canvas ---------- */
-  --bg: #ffffff;
+  --bg: #f7f8fa;
   /* Keep the default light canvas flat. A large radial wash is visible through
      the transparent titlebar/workspace gutters as broad contour bands. */
-  background: #ffffff;
+  background: #f7f8fa;
   --surface-0: rgba(255, 255, 255, 0.85);
   --surface-1: rgba(255, 255, 255, 0.95);
   --surface-2: rgba(255, 255, 255, 1);
   --lg-tint: var(--lg-tint-light);
 
   /* ---------- Borders: hairline grey ---------- */
-  --border: rgba(0, 0, 0, 0.12);
-  --border-strong: rgba(0, 0, 0, 0.24);
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
 
   /* ---------- Text: ink black ---------- */
-  --text-1: #000000;
-  --text-2: #000000;
-  --text-3: #111111;
+  --text-1: #111827;
+  --text-2: #6b7280;
+  --text-3: #6b7280;
 
   /* ---------- Accent: pure black ---------- */
   --accent: #000000;

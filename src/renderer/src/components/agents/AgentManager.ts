@@ -41,6 +41,10 @@ const catalog: WorkspaceAgent[] = [
     capabilities: ['任务规划', '上下文理解', 'Agent 调度'], status: 'unavailable', runnable: false
   },
   {
+    id: 'openai', name: 'OpenAI', type: '通用 Agent', detail: '适合通用分析、写作和任务分解',
+    capabilities: ['通用分析', '写作', '任务分解'], status: 'not-configured', runnable: false
+  },
+  {
     id: 'claude', name: 'Claude', type: '视觉设计 Agent', detail: '适合视觉理解、设计建议与方案生成',
     capabilities: ['图片理解', '设计建议', '方案生成'], status: 'not-configured', runnable: false
   },
@@ -51,6 +55,10 @@ const catalog: WorkspaceAgent[] = [
   {
     id: 'gemini', name: 'Gemini', type: '研究 Agent', detail: '适合资料整理、比较与研究任务',
     capabilities: ['研究', '整理', '比较'], status: 'not-configured', runnable: false
+  },
+  {
+    id: 'local', name: 'Local Agent', type: '本地 Agent', detail: '使用本机服务完成不离开设备的工作',
+    capabilities: ['本地执行', '隐私优先', '离线能力'], status: 'not-configured', runnable: false
   },
   {
     id: 'custom', name: 'Custom Agent', type: '自定义 Agent', detail: '连接已配置的兼容 Agent Provider',
