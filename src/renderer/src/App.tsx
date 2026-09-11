@@ -15,13 +15,14 @@ import {
   Play
 } from '@phosphor-icons/react'
 import { useAppStore, type Module } from './store'
-import type { IntelligenceSnapshot, SearchResult, WorkMode, AppEntry, BoxKind, WorkspaceContext } from '../../shared/types'
+import type { IntelligenceSnapshot, SearchResult, WorkMode, AppEntry, BoxKind, WorkspaceContext, UpdateStatus } from '../../shared/types'
 import { Button, ContextMenuOverlay, Modal, ToastStack } from './components/ui'
 import { DetailPopover } from './components/DetailPopover'
 import { Logo } from './components/Logo'
 import { StartupIntro } from './components/StartupIntro'
 import { RouteTransition } from './components/RouteTransition'
 import { ProjectSwitcher } from './components/ProjectSwitcher'
+import { UpdateBanner } from './components/UpdateBanner'
 import { HomePage, WorkspacePage } from './pages/HomePage'
 import { ProjectPage } from './pages/ProjectPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -575,6 +576,7 @@ export default function App() {
   const uiAlpha = useAppStore((s) => s.uiAlpha)
   const uiAccent = useAppStore((s) => s.uiAccent)
   const module = useAppStore((s) => s.module)
+  const setUpdateStatus = useAppStore((s) => s.setUpdateStatus)
   const openPalette = useAppStore((s) => s.openPalette)
   const closePalette = useAppStore((s) => s.closePalette)
   const refreshAfterFilesChange = useAppStore((s) => s.refreshAfterFilesChange)
@@ -699,9 +701,18 @@ export default function App() {
   }, [refreshAfterFilesChange])
 
   // Subscribe to updater status pushes
-  const setUpdateStatus = useAppStore((s) => s.setUpdateStatus)
   useEffect(() => {
     return window.workdeck.onUpdateStatus(setUpdateStatus)
+  }, [setUpdateStatus])
+
+  // Hydrate the status in case the main process completed a check before the
+  // renderer subscribed to its event stream (for example after a fast reload).
+  useEffect(() => {
+    let alive = true
+    void window.workdeck.update.status().then((status: UpdateStatus) => {
+      if (alive) setUpdateStatus(status)
+    }).catch(() => undefined)
+    return () => { alive = false }
   }, [setUpdateStatus])
 
   // Global Ctrl+K
@@ -752,6 +763,7 @@ export default function App() {
     <>
       <div ref={appShellRef} className={shellClass}>
         <TitleBar />
+        <UpdateBanner />
         <Dock onOpenHermes={() => setHermesOpen(true)} />
         <ScenarioCompletionBanner />
         <Workspace />

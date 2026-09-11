@@ -2524,12 +2524,114 @@ body[data-theme='dark'] .lg-card.lg-card-locked:hover {
   animation: motion-banner-enter var(--dur-base) var(--ease-out) backwards;
 }
 
+/* ============ Update banner (startup release notice) ============ */
+.update-banner {
+  position: fixed;
+  top: calc(2.25rem + 0.75rem);
+  left: 50%;
+  z-index: 115;
+  display: flex;
+  width: min(640px, calc(100vw - 2rem));
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.65rem 0.55rem 0.75rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-2) 96%, transparent);
+  color: var(--text-1);
+  box-shadow: var(--shadow-card-hover);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(16px) saturate(1.25);
+}
+
+.update-banner-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 0.65rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.update-banner-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.update-banner-copy strong {
+  overflow: hidden;
+  font-size: var(--fs-body-sm);
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-banner-copy span {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-banner-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.update-banner-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  white-space: nowrap;
+}
+
+.update-banner-progress {
+  min-width: 2.8rem;
+  color: var(--text-2);
+  font-size: var(--fs-micro);
+  text-align: right;
+}
+
+.update-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.update-banner-dismiss:hover {
+  background: var(--hover-bg);
+  color: var(--text-1);
+}
+
 @media (max-width: 640px) {
   .scenario-banner-text {
     font-size: var(--fs-caption);
   }
   .scenario-banner-body {
     flex-wrap: wrap;
+  }
+  .update-banner {
+    align-items: flex-start;
+  }
+  .update-banner-copy span {
+    white-space: normal;
   }
 }
 
